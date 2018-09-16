@@ -3,7 +3,8 @@
 
 #define LITHIUM_UART_BASE UART2_BASE
 
-uint8_t lithium_buffer[255];
+
+uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
 uint8_t lithium_buffer_len;
 
 void UART2_IRQHandler(void) {

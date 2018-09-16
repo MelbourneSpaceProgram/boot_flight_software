@@ -1,0 +1,102 @@
+#include "umbilical.h"
+#include <string.h>
+#include "ti/devices/msp432e4/driverlib/driverlib.h"
+
+#define UMBILICAL_UART UART1_BASE
+
+uint8_t umbilical_buffer[UMBILICAL_BUFFER_MAX_LEN];
+uint8_t umbilical_buffer_len;
+
+void UART1_IRQHandler(void) {
+    uint32_t ui32Status = MAP_UARTIntStatus(UMBILICAL_UART, true);
+    MAP_UARTIntClear(UMBILICAL_UART, ui32Status);
+
+    int32_t counter = 0;
+
+    while (MAP_UARTCharsAvail(UMBILICAL_UART) &&
+           counter < UMBILICAL_BUFFER_MAX_LEN) {
+        umbilical_buffer[counter] =
+            (uint8_t)MAP_UARTCharGetNonBlocking(UMBILICAL_UART);
+
+        counter++;
+    }
+
+    umbilical_buffer_len = counter - 1;  // To account for the final ++
+}
+
+err_t validateUmbilicalPacket(uint8_t* buffer, uint8_t buffer_len) {
+    // Check for full header
+    if (buffer_len < 5) {
+        return UMB_BAD_PACKET;
+    }
+
+    // Sync chars
+    if (buffer[0] != UMB_PACKET_SYNC_CHAR_1 &&
+        buffer[1] != UMB_PACKET_SYNC_CHAR_2) {
+        return UMB_BAD_PACKET;
+    }
+
+    // Length of packet (excl sync chars)
+    if (buffer[2] != buffer_len + 3) {
+        return UMB_BAD_PACKET;
+    }
+
+    if (buffer[3] != UMB_FIRMWARE_PART_PACKET ||
+        buffer[3] != UMB_GET_STATUS_PACKET) {
+        return UMB_BAD_PACKET;
+    }
+
+    // TODO Checksum test buffer[4]
+
+    return 0;
+}
+
+err_t handleUmbilicalPacket(uint8_t* buffer, uint8_t buffer_len) {
+    if (buffer[3] == UMB_FIRMWARE_PART_PACKET) {
+        // TODO Decode this packet
+    } else if (buffer[3] == UMB_GET_STATUS_PACKET) {
+        // TODO Send a listing of packets or something?
+    } else {
+        return UMB_BAD_PACKET;
+    }
+
+    // Packet structure
+    // buffer[0:1] = sync chars
+    // buffer[2:6] = header
+    // buffer[7:7] = payload_type, see UmbilicalPacketType
+    // buffer[8:buffer_len-1] = payload
+
+    // UMB_FIRMWARE_PART_PACKET - 0x01
+    // payload[0] = image_base_address
+    // payload[1:4] = image_patch_address
+    // payload[5] = patch_length
+    // payload[5:5+patch_length-1] = patch, applied sequentially from
+    // image_patch_address
+
+    // UMB_INITIATE_UPDATE_PACKET - 0x04
+    // payload[0] = image_base_address
+    // payload[1:4] = image checksum
+    // payload[5:8] = image checksum duplicate
+
+    // UMB_COPY_IMAGE_PACKET - 0x03
+    // payload[0] = image_base_address
+    // payload[1] = image destination address
+
+    return 0;
+}
+
+err_t getUmbilicalPacket(uint8_t* destination, uint8_t* buffer_len) {
+    // Disable UART to ensure we do not get interrupted half way through copying
+    // the packet
+    MAP_UARTDisable(UMBILICAL_UART);
+
+    if (umbilical_buffer_len == 0) {
+        MAP_UARTEnable(UMBILICAL_UART);
+        return UMB_NO_PACKET;
+    }
+    memcpy(destination, umbilical_buffer, umbilical_buffer_len);
+    *buffer_len = umbilical_buffer_len;
+    MAP_UARTEnable(UMBILICAL_UART);
+
+    return UMB_NO_ERROR;
+}
