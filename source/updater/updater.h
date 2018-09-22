@@ -19,8 +19,14 @@ enum State {
 };
 
 enum Response {
-    ACK = 0x00,  // TODO
-    NAK = 0x01,  // TODO
+    ACK = 0xCC,
+    NAK = 0x33,
+    COMMAND_RET_SUCCESS = 0x40,
+    COMMAND_RET_UNKNOWN_CMD = 0x41,
+    COMMAND_RET_INVALID_CMD = 0x42,
+    COMMAND_INVALID_ADR = 0x43,
+    COMMAND_RET_FLASH_FAIL = 0x44,
+    COMMAND_RET_CRC_FAIL = 0x45,
 };
 
 constexpr uint32_t program_size = 0xFFFFF;

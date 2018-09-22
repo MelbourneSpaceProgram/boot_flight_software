@@ -1,12 +1,11 @@
 #include "updater.h"
 #include "assert.h"
 #include "data_types.h"
-#include "internal_image.h"
+#include "source/internal_image.h"
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
-// TODO
-#define SYS_MCU_UART_BASE 123
-#define FULL_PROGRAM_LENGTH 0x123  // TODO
+#define SYS_MCU_UART UART0_BASE
+#define FULL_PROGRAM_LENGTH 0
 
 err_t getProgramBytes(ImageBaseAddress image_base_address,
                       uint32_t program_counter, uint8_t* buffer,
@@ -16,18 +15,20 @@ err_t getProgramBytes(ImageBaseAddress image_base_address,
     if (image_base_address == Image11InMemory) {
         // Max buffer size will be 32; TODO Check this
         for (int i = 0; i < 32; i++) {
-            buffer[i] = MSP_internal_image[program_counter + i];
+            buffer[i] = flight_software[program_counter + i];
+            *buffer_len = i;
         }
-
-        *buffer_len = i;
     }
 
     return 0;
 }
 
 err_t sendCommand(uint8_t* buffer) {
-    // TODO
     setChecksum(buffer);
+
+    for (int i = 0; i < buffer[0]; i++) {
+        UARTCharPutNonBlocking(SYS_MCU_UART, buffer[i]);
+    }
 
     return 0;
 }
@@ -79,6 +80,11 @@ err_t sendGetStatus() {
     return sendCommand(buffer);
 }
 
+err_t sendAckResponse() {
+    UARTCharPutNonBlocking(SYS_MCU_UART, ACK);
+    return 0;
+}
+
 err_t sendReset() {
     uint8_t buffer[] = {0x03, 0x25, 0x25};
     return sendCommand(buffer);
@@ -101,13 +107,47 @@ err_t sendSendData(uint8_t* programData, uint8_t length) {
 }
 
 err_t getType1Response(Response* command_response) {
-    // TODO
-    return 0;
+    // Wait for packets available with some reset timer
+
+    uint32_t timeout = 5000000;  // TODO This value, like 5 seconds?
+
+    while (timeout > 0) {
+        if (UARTCharsAvail(SYS_MCU_UART)) {
+            int32_t value = UARTCharGetNonBlocking(SYS_MCU_UART);
+
+            if (value != 0) {
+                *command_response = (Response)value;
+                return 0;
+            }
+        }
+    }
+    // TODO Error checking on the value read back?
+    return -1;
 }
 
 err_t getType2Response(Response* command_response) {
-    // TODO
-    return 0;
+    uint32_t timeout = 5000000;  // TODO This value, like 5 seconds?
+
+    uint8_t received_value_count = 0;
+
+    while (timeout > 0) {
+        if (UARTCharsAvail(SYS_MCU_UART)) {
+            int32_t value = UARTCharGetNonBlocking(SYS_MCU_UART);
+
+            if (value != 0) {
+                received_value_count++;
+            }
+
+            if (received_value_count == 3) {
+                // The response, who cares about size etc
+                // TODO
+                *command_response = (Response)value;
+                return 0;
+            }
+        }
+    }
+    // TODO Error checking on the value read back?
+    return -1;
 }
 
 err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
@@ -170,16 +210,16 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 break;
             }
 
-            // TODO Send AckResponse packet
+            sendAckResponse();
 
             *state = SEND_DATA_STATE;
             break;
         }
         case SEND_DATA_STATE: {
-            uint8_t programData[];
+            uint8_t programData[32];
             uint8_t length;
 
-            getProgramBytes(image_ address, *program_counter, programData,
+            getProgramBytes(image_address, *program_counter, programData,
                             &length);
 
             err_t data_error = sendSendData(programData, length);
@@ -209,11 +249,11 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 break;
             }
 
-            // TODO Send AckResponse packet
+            sendAckResponse();
 
             *program_counter += length;
             // TODO Check this is not comparing the pointer
-            if (program_counter == FULL_PROGRAM_LENGTH) {
+            if (*program_counter == FULL_PROGRAM_LENGTH) {
                 *state = RESET_STATE;
                 break;
             } else {
@@ -268,7 +308,7 @@ err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7,
                  GPIO_PIN_6 | GPIO_PIN_7);
 
-    // Trigger a reset to get it back into the bootloader
+    // Trigger a reset to get it back into the bootloader by pulling nRESET low
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, 0);
     // Wait? TODO
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, GPIO_PIN_0);

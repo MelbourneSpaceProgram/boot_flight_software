@@ -29,6 +29,8 @@ int main(void) {
 
     uint8_t* buffer = umbilical_buffer + 10;  // TODO Made up offset
 
+    beginFirmwareUpdate(Image11InMemory);
+
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
         switch (state) {
@@ -85,5 +87,3 @@ int main(void) {
         }
     }
 }
-
-
