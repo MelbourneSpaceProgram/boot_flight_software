@@ -9,6 +9,7 @@
 #include "main.h"
 #include "source/drivers/init_hal.h"
 #include "source/drivers/lithium.h"
+#include "source/drivers/payload.h"
 #include "source/drivers/umbilical.h"
 #include "source/updater/updater.h"
 
@@ -26,6 +27,8 @@ int main(void) {
     uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
     uint8_t umbilical_buffer_len;
 
+    uint8_t* buffer = umbilical_buffer + 10;  // TODO Made up offset
+
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
         switch (state) {
@@ -38,7 +41,8 @@ int main(void) {
                     break;
                 }
 
-                // Check for Lithium packet
+                // Check for Lithium packet TODO
+
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
@@ -57,18 +61,24 @@ int main(void) {
                     break;
                 }
 
-                err_t handler_error = handleUmbilicalPacket(
-                    umbilical_buffer, umbilical_buffer_len);
-                if (handler_error != UMB_NO_ERROR) {
-                    state = SYSTEM_IDLE_STATE;
-                    break;
-                }
+                // TODO Decode the Lithium header where possible, then pass it
+                // over to the payload processor
 
-                state = SYSTEM_IDLE_STATE;
+                state = SYSTEM_HANDLE_PAYLOAD;
+                break;
+            }
+            case SYSTEM_HANDLE_PAYLOAD: {
+                // TODO
+                handlePayload(buffer, 123);
                 break;
             }
             case SYSTEM_HANDLE_LITHIUM_PACKET: {
-                // There must be a valid packet in lithium_buffer to be here
+                // TODO Decode the Lithium header where possible, then pass it
+                // over to the payload processor There must be a valid packet in
+                // lithium_buffer to be here
+
+                // Then pass the packet to SYSTEM_HANDLE_PAYLOAD if it was
+                // successfully decoded
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
@@ -76,20 +86,4 @@ int main(void) {
     }
 }
 
-err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
-    // Signal that the system MCU should enter the bootloader by
-    // flagging these GPIO
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7,
-                 GPIO_PIN_6 | GPIO_PIN_7);
 
-    // Trigger a reset to get it back into the bootloader
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, 0);
-    // Wait? TODO
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, GPIO_PIN_0);
-
-    err_t update_error = updateFirmware(image_address);
-
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7, 0x00);
-
-    return update_error;
-}

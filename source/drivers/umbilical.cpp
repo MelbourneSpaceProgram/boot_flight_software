@@ -1,6 +1,7 @@
 #include "umbilical.h"
 #include <string.h>
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
+#include "source/drivers/payload.h"
 
 #define UMBILICAL_UART UART1_BASE
 
@@ -41,46 +42,12 @@ err_t validateUmbilicalPacket(uint8_t* buffer, uint8_t buffer_len) {
         return UMB_BAD_PACKET;
     }
 
-    if (buffer[3] != UMB_FIRMWARE_PART_PACKET ||
-        buffer[3] != UMB_GET_STATUS_PACKET) {
+    if (buffer[3] != PAYLOAD_FIRMWARE_PART_PACKET ||
+        buffer[3] != PAYLOAD_GET_STATUS_PACKET) {
         return UMB_BAD_PACKET;
     }
 
     // TODO Checksum test buffer[4]
-
-    return 0;
-}
-
-err_t handleUmbilicalPacket(uint8_t* buffer, uint8_t buffer_len) {
-    if (buffer[3] == UMB_FIRMWARE_PART_PACKET) {
-        // TODO Decode this packet
-    } else if (buffer[3] == UMB_GET_STATUS_PACKET) {
-        // TODO Send a listing of packets or something?
-    } else {
-        return UMB_BAD_PACKET;
-    }
-
-    // Packet structure
-    // buffer[0:1] = sync chars
-    // buffer[2:6] = header
-    // buffer[7:7] = payload_type, see UmbilicalPacketType
-    // buffer[8:buffer_len-1] = payload
-
-    // UMB_FIRMWARE_PART_PACKET - 0x01
-    // payload[0] = image_base_address
-    // payload[1:4] = image_patch_address
-    // payload[5] = patch_length
-    // payload[5:5+patch_length-1] = patch, applied sequentially from
-    // image_patch_address
-
-    // UMB_INITIATE_UPDATE_PACKET - 0x04
-    // payload[0] = image_base_address
-    // payload[1:4] = image checksum
-    // payload[5:8] = image checksum duplicate
-
-    // UMB_COPY_IMAGE_PACKET - 0x03
-    // payload[0] = image_base_address
-    // payload[1] = image destination address
 
     return 0;
 }

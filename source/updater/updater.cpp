@@ -1,10 +1,29 @@
 #include "updater.h"
 #include "assert.h"
 #include "data_types.h"
+#include "internal_image.h"
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 // TODO
 #define SYS_MCU_UART_BASE 123
+#define FULL_PROGRAM_LENGTH 0x123  // TODO
+
+err_t getProgramBytes(ImageBaseAddress image_base_address,
+                      uint32_t program_counter, uint8_t* buffer,
+                      uint8_t* buffer_len) {
+    // Read from memory using a switch state
+
+    if (image_base_address == Image11InMemory) {
+        // Max buffer size will be 32; TODO Check this
+        for (int i = 0; i < 32; i++) {
+            buffer[i] = MSP_internal_image[program_counter + i];
+        }
+
+        *buffer_len = i;
+    }
+
+    return 0;
+}
 
 err_t sendCommand(uint8_t* buffer) {
     // TODO
@@ -157,9 +176,12 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
             break;
         }
         case SEND_DATA_STATE: {
-            // TODO Get program bytes out of SPI
-            uint8_t programData[] = {};
-            uint16_t length = 0;
+            uint8_t programData[];
+            uint8_t length;
+
+            getProgramBytes(image_ address, *program_counter, programData,
+                            &length);
+
             err_t data_error = sendSendData(programData, length);
 
             if (data_error != NO_ERROR) {
@@ -189,9 +211,9 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
 
             // TODO Send AckResponse packet
 
-            *program_counter -= length;
+            *program_counter += length;
             // TODO Check this is not comparing the pointer
-            if (program_counter == 0) {
+            if (program_counter == FULL_PROGRAM_LENGTH) {
                 *state = RESET_STATE;
                 break;
             } else {
@@ -223,7 +245,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
 }
 
 err_t updateFirmware(ImageBaseAddress image_address) {
-    // TODO How to know which image?
     State state = IDLE_STATE;
     uint32_t reset_counter = 0;
     uint32_t program_counter = 0;
@@ -239,4 +260,22 @@ err_t updateFirmware(ImageBaseAddress image_address) {
             return -1;  // TODO
         }
     }
+}
+
+err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
+    // Signal that the system MCU should enter the bootloader by
+    // flagging these GPIO
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7,
+                 GPIO_PIN_6 | GPIO_PIN_7);
+
+    // Trigger a reset to get it back into the bootloader
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, 0);
+    // Wait? TODO
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, GPIO_PIN_0);
+
+    err_t update_error = updateFirmware(image_address);
+
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7, 0x00);
+
+    return update_error;
 }

@@ -9,6 +9,7 @@ enum SystemState {
     SYSTEM_UPDATE_BOOT = 1,
     SYSTEM_HANDLE_LITHIUM_PACKET = 2,
     SYSTEM_HANDLE_UMBILICAL_PACKET = 3,
+    SYSTEM_HANDLE_PAYLOAD = 4,
 };
 
 err_t init_peripherals(void);

@@ -43,9 +43,11 @@ enum ImageBaseAddress {
     Image8 = 0xD00000,
     Image9 = 0xE00000,
     Image10 = 0xF00000,
+    Image11InMemory = 0x1000000,
 };
 
 err_t setChecksum(uint8_t* command);
 err_t updateFirmware(ImageBaseAddress image_address);
+err_t beginFirmwareUpdate(ImageBaseAddress image_address);
 
 #endif /* SOURCE_UPDATER_UPDATER_H_ */
