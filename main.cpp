@@ -28,6 +28,7 @@ int main(void) {
     uint8_t umbilical_buffer_len;
 
     uint8_t* buffer = umbilical_buffer + 10;  // TODO Made up offset
+    uint32_t buffer_len;
 
     beginFirmwareUpdate(Image11InMemory);
 
@@ -35,6 +36,29 @@ int main(void) {
     while (1) {
         switch (state) {
             case SYSTEM_IDLE_STATE: {
+                // Mock the packet
+
+                buffer[0] = 0xCA;
+                buffer[1] = 0xFE;
+                buffer[2] = 15;
+                buffer[3] = PAYLOAD_FIRMWARE_PART_PACKET;
+                buffer[4] = Image11InMemory >> 24 & 0xFF;
+                buffer[5] = Image11InMemory >> 16 & 0xFF;
+                buffer[6] = Image11InMemory >> 8 & 0xFF;
+                buffer[7] = Image11InMemory >> 0 & 0xFF;
+                buffer[8] = 0x10000 >> 24 & 0xFF;
+                buffer[9] = 0x10000 >> 16 & 0xFF;
+                buffer[10] = 0x10000 >> 8 & 0xFF;
+                buffer[11] = 0x10000 >> 0 & 0xFF;
+                buffer[12] = 0x08;
+                buffer[13] = 0x09;
+                buffer[14] = 0x0A;
+                buffer[15] = 0x0B;
+
+                buffer_len = 16;
+
+                state = SYSTEM_HANDLE_UMBILICAL_PACKET;
+
                 err_t umb_packet_error =
                     getUmbilicalPacket(umbilical_buffer, &umbilical_buffer_len);
 
@@ -42,8 +66,6 @@ int main(void) {
                     state = SYSTEM_HANDLE_UMBILICAL_PACKET;
                     break;
                 }
-
-                // Check for Lithium packet TODO
 
                 state = SYSTEM_IDLE_STATE;
                 break;
@@ -70,18 +92,7 @@ int main(void) {
                 break;
             }
             case SYSTEM_HANDLE_PAYLOAD: {
-                // TODO
-                handlePayload(buffer, 123);
-                break;
-            }
-            case SYSTEM_HANDLE_LITHIUM_PACKET: {
-                // TODO Decode the Lithium header where possible, then pass it
-                // over to the payload processor There must be a valid packet in
-                // lithium_buffer to be here
-
-                // Then pass the packet to SYSTEM_HANDLE_PAYLOAD if it was
-                // successfully decoded
-                state = SYSTEM_IDLE_STATE;
+                handlePayload(buffer, buffer_len);
                 break;
             }
         }

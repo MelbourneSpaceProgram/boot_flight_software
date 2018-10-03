@@ -1,10 +1,9 @@
 #include "payload.h"
 #include "source/updater/updater.h"
+#include "source/drivers/memory.h"
 
 err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
     if (buffer[0] == PAYLOAD_FIRMWARE_PART_PACKET) {
-        // TODO Decode this packet
-
         // payload[0:3] = image_base_address
         // payload[4:7] = image_patch_address
         // payload[8] = patch_length
@@ -16,8 +15,15 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
             buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
         uint8_t patch_length_bytes = buffer[9];
 
-        // TODO Loop and copy each byte into the desired location. Try using NVM
-        // first
+        // Patch length bytes and address must be 4-aligned
+        uint32_t program_bytes[patch_length_bytes];
+        for (int i = 0; i < patch_length_bytes / 4; i++) {
+            program_bytes[i] = buffer[4 * i] << 24 | buffer[4 * i + 1] << 16 |
+                               buffer[4 * i + 2] << 8 | buffer[4 * i + 3] << 0;
+        }
+
+        writeBytesToMemory((ImageBaseAddress) image_base_address, image_patch_address,
+                           program_bytes, patch_length_bytes / 4);
     } else if (buffer[0] == PAYLOAD_INITIATE_UPDATE_PACKET) {
         uint32_t image_base_address =
             buffer[1] << 24 | buffer[2] << 16 | buffer[3] << 8 | buffer[4] << 0;
