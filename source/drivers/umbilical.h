@@ -10,6 +10,9 @@ enum UmbilicalStatus {
     UMB_NO_ERROR = 0x00,
     UMB_NO_PACKET = 0x01,
     UMB_BAD_PACKET = 0x02,
+    UMB_BAD_PACKET_HEADER = 0x03,
+    UMB_BAD_PACKET_LENGTH = 0x04,
+    UMB_BAD_PACKET_COMMAND = 0x05,
 };
 
 #define UMB_PACKET_SYNC_CHAR_1 0xCA

@@ -98,7 +98,10 @@
 								<inputType id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.exeLinker.inputType__CMD2_SRCS.1491430296" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.exeLinker.inputType__CMD2_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.exeLinker.inputType__GEN_CMDS.1681357125" name="Generated Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.exeLinker.inputType__GEN_CMDS"/>
 							</tool>
-							<tool id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.1186526253" name="GNU Objcopy Utility" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex"/>
+							<tool id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.1186526253" name="GNU Objcopy Utility" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex">
+								<option id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.TOOL_ENABLE.22203812" name="Enable tool" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.TOOL_ENABLE" value="false" valueType="boolean"/>
+								<option id="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.OUTPUT_TARGET.1331244704" name="Create an output file in format &lt;bfdname&gt; (-O, --output-target)" superClass="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.OUTPUT_TARGET" value="com.ti.ccstudio.buildDefinitions.MSP432_GNU_7.0.hex.OUTPUT_TARGET.ELF32_LITTLEARM" valueType="enumerated"/>
+							</tool>
 						</toolChain>
 					</folderInfo>
 				</configuration>
