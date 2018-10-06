@@ -27,7 +27,10 @@ err_t sendCommand(uint8_t* buffer) {
     setChecksum(buffer);
 
     for (int i = 0; i < buffer[0]; i++) {
-        UARTCharPutNonBlocking(SYS_MCU_UART, buffer[i]);
+        bool success = UARTCharPutNonBlocking(SYS_MCU_UART, buffer[i]);
+        if (success != true) {
+            return 1;
+        }
     }
 
     return 0;
@@ -53,8 +56,13 @@ err_t setChecksum(uint8_t* command) {
 }
 
 err_t sendSync() {
-    uint8_t buffer[] = {0x55, 0x55};
-    return sendCommand(buffer);
+    bool sync_char_1 = UARTCharPutNonBlocking(SYS_MCU_UART, 0x55);
+    bool sync_char_2 = UARTCharPutNonBlocking(SYS_MCU_UART, 0x55);
+
+    if (sync_char_1 != true || sync_char_2 != true) {
+        return 1;
+    }
+    return 0;
 }
 
 err_t sendDownload(uint32_t programAddress, uint32_t programSize) {
@@ -109,20 +117,27 @@ err_t sendSendData(uint8_t* programData, uint8_t length) {
 err_t getType1Response(Response* command_response) {
     // Wait for packets available with some reset timer
 
-    uint32_t timeout = 5000000;  // TODO This value, like 5 seconds?
+    // 100 ms
+    uint32_t timeout = 10;  // TODO This value, like 5 seconds?
 
     while (timeout > 0) {
-        if (UARTCharsAvail(SYS_MCU_UART)) {
-            int32_t value = UARTCharGetNonBlocking(SYS_MCU_UART);
+        int32_t value = UARTCharGet(SYS_MCU_UART);
 
-            if (value != 0) {
-                *command_response = (Response)value;
-                return 0;
-            }
+        if (value == -1) {
+            return 1;
+        }
+
+        if (value == 0) {
+            continue;
+        }
+
+        if (value != 0) {
+            *command_response = (Response)value;
+            return 0;
         }
     }
     // TODO Error checking on the value read back?
-    return -1;
+    return 1;
 }
 
 err_t getType2Response(Response* command_response) {
@@ -131,19 +146,17 @@ err_t getType2Response(Response* command_response) {
     uint8_t received_value_count = 0;
 
     while (timeout > 0) {
-        if (UARTCharsAvail(SYS_MCU_UART)) {
-            int32_t value = UARTCharGetNonBlocking(SYS_MCU_UART);
+        int32_t value = UARTCharGet(SYS_MCU_UART);
 
-            if (value != 0) {
-                received_value_count++;
-            }
+        if (value != 0) {
+            received_value_count++;
+        }
 
-            if (received_value_count == 3) {
-                // The response, who cares about size etc
-                // TODO
-                *command_response = (Response)value;
-                return 0;
-            }
+        if (received_value_count == 3) {
+            // The response, who cares about size etc
+            // TODO
+            *command_response = (Response)value;
+            return 0;
         }
     }
     // TODO Error checking on the value read back?
@@ -163,6 +176,7 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 return sync_error;
             }
 
+            SysCtlDelay(120E6 * 0.001);
             *state = PING_STATE;
             break;
         }
@@ -174,13 +188,14 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
 
             Response command_response = NAK;
             err_t response_error = getType1Response(&command_response);
-            if (response_error != NO_ERROR || command_response != ACK) {
+            SysCtlDelay(120E6 * 0.001);
+            if (response_error == NO_ERROR && command_response == ACK) {
+                *state = DOWNLOAD_STATE;
+                break;
+            } else {
                 *state = RESET_STATE;
                 break;
             }
-
-            *state = DOWNLOAD_STATE;
-            break;
         }
         case DOWNLOAD_STATE: {
             err_t download_error =
@@ -305,17 +320,16 @@ err_t updateFirmware(ImageBaseAddress image_address) {
 err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
     // Signal that the system MCU should enter the bootloader by
     // flagging these GPIO
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7,
-                 GPIO_PIN_6 | GPIO_PIN_7);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0x00);
 
     // Trigger a reset to get it back into the bootloader by pulling nRESET low
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, 0);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
     // Wait? TODO
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, GPIO_PIN_0);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
     err_t update_error = updateFirmware(image_address);
 
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7, 0x00);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7);
 
     return update_error;
 }

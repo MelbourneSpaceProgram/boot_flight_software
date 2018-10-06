@@ -29,7 +29,7 @@ int main(void) {
     uint8_t buffer[UMBILICAL_BUFFER_MAX_LEN];
     uint32_t buffer_len;
 
-    //beginFirmwareUpdate(Image11InMemory);
+    beginFirmwareUpdate(Image11InMemory);
 
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
@@ -79,7 +79,6 @@ int main(void) {
                 // There must be a valid packet in umbilical_buffer to be here
                 err_t packet_valid = validateUmbilicalPacket(
                     umbilical_buffer, umbilical_buffer_len);
-
 
                 if (packet_valid != UMB_NO_ERROR) {
                     state = SYSTEM_IDLE_STATE;

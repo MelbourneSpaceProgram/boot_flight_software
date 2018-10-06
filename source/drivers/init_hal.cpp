@@ -6,7 +6,6 @@ uint32_t systemClock;
 
 err_t init_clock() {
     /* Configure the system clock for 120 MHz */
-    // TODO Confirm
     systemClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
                                           SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480),
                                          120000000);
@@ -18,14 +17,13 @@ err_t init_gpio() {
     while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC)) {
     }
 
-    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE,
-                          GPIO_PIN_0 | GPIO_PIN_6 | GPIO_PIN_7);
+    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_7);
     // Don't turn the system MCU off... yet
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_0, GPIO_PIN_0);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
     // De-assert the trigger lines so we don't enter the bootloader
     // TODO Why am I running two?
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_6 | GPIO_PIN_7, 0x00);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0x00);
 
     return 0;
 }
@@ -43,6 +41,10 @@ err_t init_system_uart() {
     MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
     MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
     MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    MAP_UARTConfigSetExpClk(
+        UART0_BASE, systemClock, 115200,
+        UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
 
     return 0;
 }
