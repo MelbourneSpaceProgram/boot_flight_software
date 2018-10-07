@@ -71,6 +71,16 @@ SECTIONS {
 
     __etext = .;
 
+	.stack (NOLOAD) : ALIGN(0x8) {
+		__stack_start__ = .;
+        _stack = .;
+        KEEP(*(.stack))
+        __stack_end__ = .;
+    } > REGION_STACK AT> REGION_STACK
+
+    __StackTop = ORIGIN(REGION_STACK) + LENGTH(REGION_STACK);
+    PROVIDE(__stack = __StackTop);
+
     .data : {
         __data_load__ = LOADADDR (.data);
         __data_start__ = .;
@@ -100,11 +110,5 @@ SECTIONS {
         __HeapLimit = __heap_end__;
     } > REGION_HEAP AT> REGION_HEAP
 
-    .stack (NOLOAD) : ALIGN(0x8) {
-        _stack = .;
-        KEEP(*(.stack))
-    } > REGION_STACK AT> REGION_STACK
 
-    __StackTop = ORIGIN(REGION_STACK) + LENGTH(REGION_STACK);
-    PROVIDE(__stack = __StackTop);
 }

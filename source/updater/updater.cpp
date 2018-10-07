@@ -1,4 +1,5 @@
 #include "updater.h"
+#include <stdio.h>
 #include "assert.h"
 #include "data_types.h"
 #include "source/internal_image.h"
@@ -118,22 +119,22 @@ err_t getType1Response(Response* command_response) {
     // Wait for packets available with some reset timer
 
     // 100 ms
-    uint32_t timeout = 10;  // TODO This value, like 5 seconds?
+    uint32_t timeout = 120E6/10000;  // TODO This value, like 5 seconds?
 
     while (timeout > 0) {
-        int32_t value = UARTCharGet(SYS_MCU_UART);
+        if (UARTCharsAvail(SYS_MCU_UART)) {
+            int32_t value = UARTCharGetNonBlocking(SYS_MCU_UART);
+            value = value & 0xFF;
+            if (value == 0) {
+                continue;
+            }
 
-        if (value == -1) {
-            return 1;
-        }
-
-        if (value == 0) {
-            continue;
-        }
-
-        if (value != 0) {
-            *command_response = (Response)value;
-            return 0;
+            if (value != 0) {
+                *command_response = (Response)value;
+                return 0;
+            }
+        } else {
+            timeout--;
         }
     }
     // TODO Error checking on the value read back?
@@ -165,135 +166,166 @@ err_t getType2Response(Response* command_response) {
 
 err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                            uint32_t* program_counter) {
-    switch (*state) {
-        case IDLE_STATE: {
-            *state = SYNC_STATE;
-            break;
+    uint32_t reset_counter = 0;
+    while (true) {
+        if (reset_counter > reset_failure_threshold) {
+            return -1;  // TODO
         }
-        case SYNC_STATE: {
-            err_t sync_error = sendSync();
-            if (sync_error != NO_ERROR) {
-                return sync_error;
-            }
 
-            SysCtlDelay(120E6 * 0.001);
-            *state = PING_STATE;
-            break;
-        }
-        case PING_STATE: {
-            err_t ping_error = sendPing();
-            if (ping_error != NO_ERROR) {
-                return ping_error;
-            }
-
-            Response command_response = NAK;
-            err_t response_error = getType1Response(&command_response);
-            SysCtlDelay(120E6 * 0.001);
-            if (response_error == NO_ERROR && command_response == ACK) {
-                *state = DOWNLOAD_STATE;
-                break;
-            } else {
-                *state = RESET_STATE;
+        switch (*state) {
+            case IDLE_STATE: {
+                printf("Updater-IDLE_STATE");
+                *state = SYNC_STATE;
                 break;
             }
-        }
-        case DOWNLOAD_STATE: {
-            err_t download_error =
-                sendDownload(program_start_address, program_size);
-            if (download_error != NO_ERROR) {
-                return download_error;
-            }
+            case SYNC_STATE: {
+                printf("Updater-SYNC_STATE");
+                err_t sync_error = sendSync();
+                if (sync_error != NO_ERROR) {
+                    printf("Sync error %d", sync_error);
+                    return sync_error;
+                }
 
-            Response command_response = NAK;
-            err_t response_error = getType1Response(&command_response);
-
-            if (response_error != NO_ERROR || command_response != ACK) {
-                *state = RESET_STATE;
+                SysCtlDelay(120E6 * 0.001);
+                *state = PING_STATE;
                 break;
             }
+            case PING_STATE: {
+                printf("Updater-PING_STATE");
+                err_t ping_error = sendPing();
+                if (ping_error != NO_ERROR) {
+                    printf("Ping error %d", ping_error);
+                    return ping_error;
+                }
 
-            err_t status_error = sendGetStatus();
-            if (status_error != NO_ERROR) {
-                return status_error;
+                Response command_response = NAK;
+                err_t response_error = getType1Response(&command_response);
+                SysCtlDelay(120E6 * 0.001);
+                if (response_error == NO_ERROR && command_response == ACK) {
+                    *state = DOWNLOAD_STATE;
+                    break;
+                } else {
+                    printf("Response error %d, command_response %d",
+                           response_error, command_response);
+                    *state = RESET_STATE;
+                    break;
+                }
             }
+            case DOWNLOAD_STATE: {
+                printf("Updater-DOWNLOAD_STATE");
+                err_t download_error =
+                    sendDownload(program_start_address, program_size);
+                if (download_error != NO_ERROR) {
+                    printf("Download error %d", download_error);
+                    return download_error;
+                }
 
-            Response status_response;
-            err_t status_response_error = getType2Response(&status_response);
+                Response command_response = NAK;
+                err_t response_error = getType1Response(&command_response);
 
-            if (status_response_error != NO_ERROR) {
-                *state = RESET_STATE;
-                break;
-            }
+                if (response_error != NO_ERROR || command_response != ACK) {
+                    printf("Response error %d, command_response %d",
+                           response_error, command_response);
+                    *state = RESET_STATE;
+                    break;
+                }
 
-            sendAckResponse();
+                err_t status_error = sendGetStatus();
+                if (status_error != NO_ERROR) {
+                    printf("Status error %d", status_error);
+                    return status_error;
+                }
 
-            *state = SEND_DATA_STATE;
-            break;
-        }
-        case SEND_DATA_STATE: {
-            uint8_t programData[32];
-            uint8_t length;
+                Response status_response;
+                err_t status_response_error =
+                    getType2Response(&status_response);
 
-            getProgramBytes(image_address, *program_counter, programData,
-                            &length);
+                if (status_response_error != NO_ERROR) {
+                    printf("Type 2 status response error %d",
+                           status_response_error);
+                    *state = RESET_STATE;
+                    break;
+                }
 
-            err_t data_error = sendSendData(programData, length);
+                sendAckResponse();
 
-            if (data_error != NO_ERROR) {
-                return data_error;
-            }
-
-            Response command_response = NAK;
-            err_t response_error = getType1Response(&command_response);
-
-            if (response_error != NO_ERROR || command_response != ACK) {
-                *state = RESET_STATE;
-                break;
-            }
-
-            err_t status_error = sendGetStatus();
-            if (status_error != NO_ERROR) {
-                return status_error;
-            }
-
-            Response status_response;
-            err_t status_response_error = getType2Response(&status_response);
-
-            if (status_response_error != NO_ERROR) {
-                *state = RESET_STATE;
-                break;
-            }
-
-            sendAckResponse();
-
-            *program_counter += length;
-            // TODO Check this is not comparing the pointer
-            if (*program_counter == FULL_PROGRAM_LENGTH) {
-                *state = RESET_STATE;
-                break;
-            } else {
                 *state = SEND_DATA_STATE;
                 break;
             }
-            break;
-        }
-        case RESET_STATE: {
-            err_t reset_error = sendReset();
+            case SEND_DATA_STATE: {
+                printf("Updater-SEND_DATA_STATE");
+                uint8_t programData[32];
+                uint8_t length;
 
-            if (reset_error != NO_ERROR) {
-                return reset_error;
-            }
+                getProgramBytes(image_address, *program_counter, programData,
+                                &length);
 
-            Response command_response = NAK;
-            err_t response_error = getType1Response(&command_response);
+                err_t data_error = sendSendData(programData, length);
 
-            if (response_error != NO_ERROR || command_response != ACK) {
-                *state = RESET_STATE;
+                if (data_error != NO_ERROR) {
+                    printf("data error %d", data_error);
+                    return data_error;
+                }
+
+                Response command_response = NAK;
+                err_t response_error = getType1Response(&command_response);
+
+                if (response_error != NO_ERROR || command_response != ACK) {
+                    printf("Response error %d, command_response %d",
+                           response_error, command_response);
+                    *state = RESET_STATE;
+                    break;
+                }
+
+                err_t status_error = sendGetStatus();
+                if (status_error != NO_ERROR) {
+                    printf("status error %d", status_error);
+                    return status_error;
+                }
+
+                Response status_response;
+                err_t status_response_error =
+                    getType2Response(&status_response);
+
+                if (status_response_error != NO_ERROR) {
+                    printf("status response error %d", status_response_error);
+                    *state = RESET_STATE;
+                    break;
+                }
+
+                sendAckResponse();
+
+                *program_counter += length;
+                // TODO Check this is not comparing the pointer
+                if (*program_counter == FULL_PROGRAM_LENGTH) {
+                    *state = RESET_STATE;
+                    break;
+                } else {
+                    *state = SEND_DATA_STATE;
+                    break;
+                }
                 break;
             }
+            case RESET_STATE: {
+                printf("Updater-RESET_STATE");
+                reset_counter++;
+                err_t reset_error = sendReset();
 
-            *state = IDLE_STATE;
-            break;
+                if (reset_error != NO_ERROR) {
+                    return reset_error;
+                }
+
+                Response command_response = NAK;
+                err_t response_error = getType1Response(&command_response);
+
+                if (response_error != NO_ERROR || command_response != ACK) {
+                    *state = RESET_STATE;
+                    break;
+                }
+
+                *state = IDLE_STATE;
+                break;
+            }
         }
     }
     return NO_ERROR;
@@ -304,27 +336,24 @@ err_t updateFirmware(ImageBaseAddress image_address) {
     uint32_t reset_counter = 0;
     uint32_t program_counter = 0;
 
-    while (1) {
-        firmwareStateMachine(&state, image_address, &program_counter);
-
-        if (state == RESET_STATE) {
-            reset_counter++;
-        }
-
-        if (reset_counter > reset_failure_threshold) {
-            return -1;  // TODO
-        }
-    }
+    firmwareStateMachine(&state, image_address, &program_counter);
 }
 
 err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
+    setbuf(stdout, NULL);
+
+    // Take it out of reset
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
+    SysCtlDelay(120E6);
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
+
     // Signal that the system MCU should enter the bootloader by
     // flagging these GPIO
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0x00);
 
     // Trigger a reset to get it back into the bootloader by pulling nRESET low
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
-    // Wait? TODO
+    SysCtlDelay(120E6);
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
     err_t update_error = updateFirmware(image_address);

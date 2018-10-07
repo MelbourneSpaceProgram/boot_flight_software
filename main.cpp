@@ -29,8 +29,11 @@ int main(void) {
     uint8_t buffer[UMBILICAL_BUFFER_MAX_LEN];
     uint32_t buffer_len;
 
-    beginFirmwareUpdate(Image11InMemory);
+    err_t err = beginFirmwareUpdate(Image11InMemory);
 
+    while(1){
+
+    }
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
         switch (state) {
