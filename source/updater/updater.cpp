@@ -6,7 +6,7 @@
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 #define SYS_MCU_UART UART0_BASE
-#define FULL_PROGRAM_LENGTH 0
+#define FULL_PROGRAM_LENGTH 0xFFFFF
 
 err_t getProgramBytes(ImageBaseAddress image_base_address,
                       uint32_t program_counter, uint8_t* buffer,
@@ -14,12 +14,19 @@ err_t getProgramBytes(ImageBaseAddress image_base_address,
     // Read from memory using a switch state
 
     if (image_base_address == Image11InMemory) {
+        uint8_t bytes_to_read = 32;
+
+        if (FULL_PROGRAM_LENGTH - program_counter < 32) {
+            bytes_to_read = FULL_PROGRAM_LENGTH - program_counter;
+        }
+
+        *buffer_len = bytes_to_read;
         // Max buffer size will be 32; TODO Check this
-        for (int i = 0; i < 32; i++) {
+        for (int i = 0; i < bytes_to_read; i++) {
             buffer[i] = flight_software[program_counter + i];
-            *buffer_len = i;
         }
     }
+
 
     return 0;
 }
@@ -28,10 +35,7 @@ err_t sendCommand(uint8_t* buffer) {
     setChecksum(buffer);
 
     for (int i = 0; i < buffer[0]; i++) {
-        bool success = UARTCharPutNonBlocking(SYS_MCU_UART, buffer[i]);
-        if (success != true) {
-            return 1;
-        }
+        UARTCharPut(SYS_MCU_UART, buffer[i]);
     }
 
     return 0;
@@ -72,14 +76,14 @@ err_t sendDownload(uint32_t programAddress, uint32_t programSize) {
     buffer[0] = 0x0B;
     buffer[1] = 0x00;
     buffer[2] = 0x21;
-    buffer[3] = programAddress << 24 & 0xFF;
-    buffer[4] = programAddress << 16 & 0xFF;
-    buffer[5] = programAddress << 8 & 0xFF;
-    buffer[6] = programAddress << 0 & 0xFF;
-    buffer[7] = programSize << 24 & 0xFF;
-    buffer[8] = programSize << 16 & 0xFF;
-    buffer[9] = programSize << 8 & 0xFF;
-    buffer[10] = programSize << 0 & 0xFF;
+    buffer[3] = programAddress >> 24 & 0xFF;
+    buffer[4] = programAddress >> 16 & 0xFF;
+    buffer[5] = programAddress >> 8 & 0xFF;
+    buffer[6] = programAddress >> 0 & 0xFF;
+    buffer[7] = programSize >> 24 & 0xFF;
+    buffer[8] = programSize >> 16 & 0xFF;
+    buffer[9] = programSize >> 8 & 0xFF;
+    buffer[10] = programSize >> 0 & 0xFF;
 
     return sendCommand(buffer);
 }
@@ -119,7 +123,7 @@ err_t getType1Response(Response* command_response) {
     // Wait for packets available with some reset timer
 
     // 100 ms
-    uint32_t timeout = 120E6/10000;  // TODO This value, like 5 seconds?
+    uint32_t timeout = 100000;  // TODO This value, like 5 seconds?
 
     while (timeout > 0) {
         if (UARTCharsAvail(SYS_MCU_UART)) {
@@ -130,10 +134,13 @@ err_t getType1Response(Response* command_response) {
             }
 
             if (value != 0) {
-                *command_response = (Response)value;
+                if (value == ACK || value == NAK) {
+                    *command_response = (Response)value;
+                }
                 return 0;
             }
         } else {
+            SysCtlDelay(120E6 * 0.001);
             timeout--;
         }
     }
@@ -159,15 +166,25 @@ err_t getType2Response(Response* command_response) {
             *command_response = (Response)value;
             return 0;
         }
+        SysCtlDelay(120E6 * 0.001);
+        timeout--;
     }
     // TODO Error checking on the value read back?
     return -1;
+}
+err_t clearFifo() {
+    while (UARTCharsAvail(SYS_MCU_UART)) {
+        UARTCharGetNonBlocking(SYS_MCU_UART);
+    }
+
+    return 0;
 }
 
 err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                            uint32_t* program_counter) {
     uint32_t reset_counter = 0;
     while (true) {
+        clearFifo();
         if (reset_counter > reset_failure_threshold) {
             return -1;  // TODO
         }
@@ -185,6 +202,8 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     printf("Sync error %d", sync_error);
                     return sync_error;
                 }
+
+                // Am I receiving bytes here and then not dealing with them?
 
                 SysCtlDelay(120E6 * 0.001);
                 *state = PING_STATE;
@@ -296,7 +315,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 sendAckResponse();
 
                 *program_counter += length;
-                // TODO Check this is not comparing the pointer
                 if (*program_counter == FULL_PROGRAM_LENGTH) {
                     *state = RESET_STATE;
                     break;
@@ -344,7 +362,7 @@ err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
 
     // Take it out of reset
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
-    SysCtlDelay(120E6);
+    SysCtlDelay(120E6 / 8);
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
     // Signal that the system MCU should enter the bootloader by
@@ -353,7 +371,7 @@ err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
 
     // Trigger a reset to get it back into the bootloader by pulling nRESET low
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
-    SysCtlDelay(120E6);
+    SysCtlDelay(120E6 / 8);
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
     err_t update_error = updateFirmware(image_address);

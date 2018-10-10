@@ -6,9 +6,8 @@ uint32_t systemClock;
 
 err_t init_clock() {
     /* Configure the system clock for 120 MHz */
-    systemClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
-                                          SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480),
-                                         120000000);
+    systemClock = MAP_SysCtlClockFreqSet(
+        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
     return 0;
 }
 
@@ -21,9 +20,8 @@ err_t init_gpio() {
     // Don't turn the system MCU off... yet
     GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
 
-    // De-assert the trigger lines so we don't enter the bootloader
-    // TODO Why am I running two?
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0x00);
+    // Deassert trigger, active low
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7);
 
     return 0;
 }
@@ -45,6 +43,11 @@ err_t init_system_uart() {
     MAP_UARTConfigSetExpClk(
         UART0_BASE, systemClock, 115200,
         UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
+
+    // Double check what we get back
+
+    uint32_t baud, config;
+    UARTConfigGetExpClk(UART0_BASE, 120E6, &baud, &config);
 
     return 0;
 }
