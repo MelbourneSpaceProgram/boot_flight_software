@@ -2,6 +2,7 @@
 #define SOURCE_UPDATER_UPDATER_H_
 
 #include "data_types.h"
+#include "source/internal_image.h"
 
 err_t sendCommand(uint8_t* buffer);
 
@@ -16,6 +17,7 @@ enum State {
     SYNC_STATE = 3,
     DOWNLOAD_STATE = 4,
     SEND_DATA_STATE = 5,
+    SUCCESS_STATE = 6,
 };
 
 enum Response {
@@ -29,7 +31,7 @@ enum Response {
     COMMAND_RET_CRC_FAIL = 0x45,
 };
 
-constexpr uint32_t program_size = 0xFFFFF;
+constexpr uint32_t program_size = sizeof(flight_software);
 constexpr uint32_t program_start_address = 0x00;
 constexpr uint32_t reset_failure_threshold = 100;
 

@@ -1,13 +1,11 @@
 MEMORY
 {
-    FLASH (RX) : ORIGIN = 0x00000000, LENGTH = 0x000F0000
-    IMAGE (RWX) : ORIGIN = 0x000F0000, LENGTH = 0x000D0000
+    FLASH (RX) : ORIGIN = 0x00000000, LENGTH = 0x00100000
     SRAM (WX)  : ORIGIN = 0x20000000, LENGTH = 0x00040000
 }
 
 REGION_ALIAS("REGION_TEXT", FLASH);
 REGION_ALIAS("REGION_BSS", SRAM);
-REGION_ALIAS("REGION_IMAGE", IMAGE);
 REGION_ALIAS("REGION_DATA", SRAM);
 REGION_ALIAS("REGION_STACK", SRAM);
 REGION_ALIAS("REGION_HEAP", SRAM);
@@ -51,13 +49,6 @@ SECTIONS {
         *(.rodata)
         *(.rodata.*)
     } > REGION_TEXT AT> REGION_TEXT
-
-	.image : {
-		. = ALIGN(4);
-		__image_start__ = .;
-		*(.image*)
-		__image_end__ = .;
-	} > REGION_IMAGE
 
     .ARM.exidx : {
         __exidx_start = .;

@@ -15,7 +15,10 @@ err_t writeBytesToMemory(ImageBaseAddress image, uint32_t start_address,
         )*/
 
         int32_t error = FlashProgram(data, start_address, data_size);
-        int bkpt = 123;
+
+        if (error != 0) {
+            return error;
+        }
     }
 
     return 0;

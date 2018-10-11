@@ -476,20 +476,20 @@ void HardFault_Handler(void){
 
 
 void HardFault_HandlerC(unsigned long *hardfault_args){
-        volatile unsigned long stacked_r0 ;
-        volatile unsigned long stacked_r1 ;
-        volatile unsigned long stacked_r2 ;
-        volatile unsigned long stacked_r3 ;
-        volatile unsigned long stacked_r12 ;
-        volatile unsigned long stacked_lr ;
-        volatile unsigned long stacked_pc ;
-        volatile unsigned long stacked_psr ;
-        volatile unsigned long _CFSR ;
-        volatile unsigned long _HFSR ;
-        volatile unsigned long _DFSR ;
-        volatile unsigned long _AFSR ;
-        volatile unsigned long _BFAR ;
-        volatile unsigned long _MMAR ;
+        volatile unsigned long stacked_r0 __attribute__ ((unused));
+        volatile unsigned long stacked_r1 __attribute__ ((unused));
+        volatile unsigned long stacked_r2 __attribute__ ((unused));
+        volatile unsigned long stacked_r3 __attribute__ ((unused));
+        volatile unsigned long stacked_r12 __attribute__ ((unused));
+        volatile unsigned long stacked_lr __attribute__ ((unused));
+        volatile unsigned long stacked_pc __attribute__ ((unused));
+        volatile unsigned long stacked_psr __attribute__ ((unused));
+        volatile unsigned long _CFSR __attribute__ ((unused));
+        volatile unsigned long _HFSR __attribute__ ((unused));
+        volatile unsigned long _DFSR __attribute__ ((unused));
+        volatile unsigned long _AFSR __attribute__ ((unused));
+        volatile unsigned long _BFAR __attribute__ ((unused));
+        volatile unsigned long _MMAR __attribute__ ((unused));
 
         stacked_r0 = ((unsigned long)hardfault_args[0]) ;
         stacked_r1 = ((unsigned long)hardfault_args[1]) ;

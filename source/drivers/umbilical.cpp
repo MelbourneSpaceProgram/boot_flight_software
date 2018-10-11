@@ -1,7 +1,7 @@
 #include "umbilical.h"
 #include <string.h>
-#include "ti/devices/msp432e4/driverlib/driverlib.h"
 #include "source/drivers/payload.h"
+#include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 #define UMBILICAL_UART UART1_BASE
 
@@ -64,6 +64,8 @@ err_t getUmbilicalPacket(uint8_t* destination, uint8_t* buffer_len) {
     memcpy(destination, umbilical_buffer, umbilical_buffer_len);
     *buffer_len = umbilical_buffer_len;
     MAP_UARTEnable(UMBILICAL_UART);
+
+    // TODO Need to set len to 0
 
     return UMB_NO_ERROR;
 }

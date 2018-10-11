@@ -1,11 +1,12 @@
 #include "init_hal.h"
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
-/* System clock rate in Hz */
+// System clock rate in Hz
 uint32_t systemClock;
 
+
+
 err_t init_clock() {
-    /* Configure the system clock for 120 MHz */
     systemClock = MAP_SysCtlClockFreqSet(
         SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
     return 0;
@@ -16,12 +17,20 @@ err_t init_gpio() {
     while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC)) {
     }
 
-    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_4 | GPIO_PIN_7);
-    // Don't turn the system MCU off... yet
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOQ);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOQ)) {
+    }
 
-    // Deassert trigger, active low
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7);
+    GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, sys_reset_pin | update_trigger_pin);
+    GPIOPinTypeGPIOOutput(led_port, led_pin);
+
+    // Keep the system MCU out of reset
+    GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
+
+    // Do not activate the bootloader firmware update trigger
+    GPIOPinWrite(update_trigger_port, update_trigger_pin, update_trigger_pin);
+
+    GPIOPinWrite(led_port, led_pin, led_pin);
 
     return 0;
 }
@@ -41,7 +50,7 @@ err_t init_system_uart() {
     MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     MAP_UARTConfigSetExpClk(
-        UART0_BASE, systemClock, 115200,
+        UART0_BASE, systemClock, 500000,
         UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
 
     // Double check what we get back

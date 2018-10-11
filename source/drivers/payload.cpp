@@ -1,6 +1,6 @@
 #include "payload.h"
-#include "source/updater/updater.h"
 #include "source/drivers/memory.h"
+#include "source/updater/updater.h"
 
 err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
     if (buffer[0] == PAYLOAD_FIRMWARE_PART_PACKET) {
@@ -22,18 +22,14 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
                                buffer[4 * i + 2] << 8 | buffer[4 * i + 3] << 0;
         }
 
-        writeBytesToMemory((ImageBaseAddress) image_base_address, image_patch_address,
-                           program_bytes, patch_length_bytes / 4);
+        writeBytesToMemory((ImageBaseAddress)image_base_address,
+                           image_patch_address, program_bytes,
+                           patch_length_bytes / 4);
     } else if (buffer[0] == PAYLOAD_INITIATE_UPDATE_PACKET) {
         uint32_t image_base_address =
             buffer[1] << 24 | buffer[2] << 16 | buffer[3] << 8 | buffer[4] << 0;
-        uint32_t image_checksum =
-            buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
-        uint32_t image_checksum_duplicate = buffer[9] << 24 | buffer[10] << 16 |
-                                            buffer[11] << 8 | buffer[12] << 0;
-
-        // TODO Compare checksums with each other, then go compare checksums on
-        // the image
+        uint32_t image_checksum __attribute__ ((unused));
+        image_checksum = buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
 
         // TODO Validate image base address?
         err_t firmware_update_error =

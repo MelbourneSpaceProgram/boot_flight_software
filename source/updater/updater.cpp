@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include "assert.h"
 #include "data_types.h"
+#include "source/drivers/init_hal.h"
 #include "source/internal_image.h"
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 #define SYS_MCU_UART UART0_BASE
-#define FULL_PROGRAM_LENGTH 0xFFFFF
 
 err_t getProgramBytes(ImageBaseAddress image_base_address,
                       uint32_t program_counter, uint8_t* buffer,
@@ -16,8 +16,8 @@ err_t getProgramBytes(ImageBaseAddress image_base_address,
     if (image_base_address == Image11InMemory) {
         uint8_t bytes_to_read = 32;
 
-        if (FULL_PROGRAM_LENGTH - program_counter < 32) {
-            bytes_to_read = FULL_PROGRAM_LENGTH - program_counter;
+        if (program_size - program_counter < 32) {
+            bytes_to_read = program_size - program_counter;
         }
 
         *buffer_len = bytes_to_read;
@@ -26,7 +26,6 @@ err_t getProgramBytes(ImageBaseAddress image_base_address,
             buffer[i] = flight_software[program_counter + i];
         }
     }
-
 
     return 0;
 }
@@ -183,7 +182,17 @@ err_t clearFifo() {
 err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                            uint32_t* program_counter) {
     uint32_t reset_counter = 0;
+    bool led_flag = 1;
+
     while (true) {
+        if (led_flag) {
+            led_flag = 0;
+            GPIOPinWrite(led_port, led_pin, 0);
+        } else {
+            led_flag = 1;
+            GPIOPinWrite(led_port, led_pin, led_pin);
+        }
+
         clearFifo();
         if (reset_counter > reset_failure_threshold) {
             return -1;  // TODO
@@ -191,15 +200,12 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
 
         switch (*state) {
             case IDLE_STATE: {
-                printf("Updater-IDLE_STATE");
                 *state = SYNC_STATE;
                 break;
             }
             case SYNC_STATE: {
-                printf("Updater-SYNC_STATE");
                 err_t sync_error = sendSync();
                 if (sync_error != NO_ERROR) {
-                    printf("Sync error %d", sync_error);
                     return sync_error;
                 }
 
@@ -210,10 +216,8 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 break;
             }
             case PING_STATE: {
-                printf("Updater-PING_STATE");
                 err_t ping_error = sendPing();
                 if (ping_error != NO_ERROR) {
-                    printf("Ping error %d", ping_error);
                     return ping_error;
                 }
 
@@ -224,18 +228,14 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     *state = DOWNLOAD_STATE;
                     break;
                 } else {
-                    printf("Response error %d, command_response %d",
-                           response_error, command_response);
                     *state = RESET_STATE;
                     break;
                 }
             }
             case DOWNLOAD_STATE: {
-                printf("Updater-DOWNLOAD_STATE");
                 err_t download_error =
                     sendDownload(program_start_address, program_size);
                 if (download_error != NO_ERROR) {
-                    printf("Download error %d", download_error);
                     return download_error;
                 }
 
@@ -243,15 +243,12 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
 
                 if (response_error != NO_ERROR || command_response != ACK) {
-                    printf("Response error %d, command_response %d",
-                           response_error, command_response);
                     *state = RESET_STATE;
                     break;
                 }
 
                 err_t status_error = sendGetStatus();
                 if (status_error != NO_ERROR) {
-                    printf("Status error %d", status_error);
                     return status_error;
                 }
 
@@ -260,8 +257,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     getType2Response(&status_response);
 
                 if (status_response_error != NO_ERROR) {
-                    printf("Type 2 status response error %d",
-                           status_response_error);
                     *state = RESET_STATE;
                     break;
                 }
@@ -272,7 +267,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 break;
             }
             case SEND_DATA_STATE: {
-                printf("Updater-SEND_DATA_STATE");
                 uint8_t programData[32];
                 uint8_t length;
 
@@ -282,7 +276,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t data_error = sendSendData(programData, length);
 
                 if (data_error != NO_ERROR) {
-                    printf("data error %d", data_error);
                     return data_error;
                 }
 
@@ -290,15 +283,12 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
 
                 if (response_error != NO_ERROR || command_response != ACK) {
-                    printf("Response error %d, command_response %d",
-                           response_error, command_response);
                     *state = RESET_STATE;
                     break;
                 }
 
                 err_t status_error = sendGetStatus();
                 if (status_error != NO_ERROR) {
-                    printf("status error %d", status_error);
                     return status_error;
                 }
 
@@ -307,7 +297,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     getType2Response(&status_response);
 
                 if (status_response_error != NO_ERROR) {
-                    printf("status response error %d", status_response_error);
                     *state = RESET_STATE;
                     break;
                 }
@@ -315,7 +304,7 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 sendAckResponse();
 
                 *program_counter += length;
-                if (*program_counter == FULL_PROGRAM_LENGTH) {
+                if (*program_counter == program_size) {
                     *state = RESET_STATE;
                     break;
                 } else {
@@ -325,7 +314,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 break;
             }
             case RESET_STATE: {
-                printf("Updater-RESET_STATE");
                 reset_counter++;
                 err_t reset_error = sendReset();
 
@@ -341,8 +329,11 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     break;
                 }
 
-                *state = IDLE_STATE;
+                *state = SUCCESS_STATE;
                 break;
+            }
+            case SUCCESS_STATE: {
+                return NO_ERROR;
             }
         }
     }
@@ -351,32 +342,28 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
 
 err_t updateFirmware(ImageBaseAddress image_address) {
     State state = IDLE_STATE;
-    uint32_t reset_counter = 0;
     uint32_t program_counter = 0;
 
     firmwareStateMachine(&state, image_address, &program_counter);
+
+    return 0;
 }
 
 err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
-    setbuf(stdout, NULL);
-
-    // Take it out of reset
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
-    SysCtlDelay(120E6 / 8);
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
-
     // Signal that the system MCU should enter the bootloader by
     // flagging these GPIO
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, 0x00);
+    GPIOPinWrite(led_port, led_pin, 0x00);
+    GPIOPinWrite(update_trigger_port, update_trigger_pin, 0x00);
 
     // Trigger a reset to get it back into the bootloader by pulling nRESET low
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, 0);
+    GPIOPinWrite(sys_reset_port, sys_reset_pin, 0);
     SysCtlDelay(120E6 / 8);
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_4, GPIO_PIN_4);
+    GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
 
     err_t update_error = updateFirmware(image_address);
 
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_7, GPIO_PIN_7);
+    GPIOPinWrite(led_port, led_pin, led_pin);
+    GPIOPinWrite(update_trigger_port, update_trigger_pin, update_trigger_pin);
 
     return update_error;
 }
