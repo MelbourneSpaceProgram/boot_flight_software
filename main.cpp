@@ -1,3 +1,4 @@
+#include "main.h"
 #include <main.h>
 #include <source/drivers/hal.h>
 #include <source/drivers/lithium.h>
@@ -5,6 +6,14 @@
 #include <source/drivers/ring_buffer.h>
 #include <source/drivers/umbilical.h>
 #include <source/globals.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <ti/devices/msp432e4/driverlib/driverlib.h>
+#include "source/drivers/lithium.h"
+#include "source/drivers/payload.h"
+#include "source/drivers/umbilical.h"
+#include "source/updater/updater.h"
 
 uint8_t SYSTEM_FLAGS;
 
@@ -71,6 +80,7 @@ int main(void) {
                     state = SYSTEM_IDLE_STATE;
                     break;
                 }
+
                 state = SYSTEM_HANDLE_PAYLOAD;
                 break;
             }

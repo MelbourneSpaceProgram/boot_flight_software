@@ -33,7 +33,7 @@ err_t umbilicalBytesAvailable(uint8_t* bytes_available) {
 }
 
 err_t umbilicalReadPacket(uint8_t umbilical_buffer[255],
-                    uint8_t* umbilical_buffer_len) {
+                          uint8_t* umbilical_buffer_len) {
     uint8_t sync_char;
     // Burn until we sync
     circ_bbuf_pop(&umbilical_ring_buffer, &sync_char);
