@@ -22,6 +22,11 @@ int main(void) {
     uint8_t umbilical_buffer[umbilical_buffer_max_len] = {0};
     uint8_t umbilical_buffer_len = 0;
 
+    uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
+    uint8_t lithium_buffer_len;
+
+    uint8_t buffer[UMBILICAL_BUFFER_MAX_LEN];
+    uint32_t buffer_len;
     uint8_t payload_buffer[payload_buffer_max_len] = {0};
     uint32_t payload_buffer_len = 0;
 
@@ -31,6 +36,22 @@ int main(void) {
             case SYSTEM_IDLE_STATE: {
                 // TODO
                 // If something of interest in a buffer, call the packet handler
+                err_t umb_packet_error =
+                    getUmbilicalPacket(umbilical_buffer, &umbilical_buffer_len);
+
+                if (umb_packet_error == UMB_NO_ERROR) {
+                    state = SYSTEM_HANDLE_UMBILICAL_PACKET;
+                    break;
+                }
+
+                err_t lithium_packet_error =
+                    getLithiumPacket(lithium_buffer, &lithium_buffer_len);
+
+                if (lithium_packet_error == LITHIUM_NO_ERROR) {
+                    state = SYSTEM_HANDLE_LITHIUM_PACKET;
+                    break;
+                }
+
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
@@ -53,12 +74,31 @@ int main(void) {
                 break;
             }
             case SYSTEM_HANDLE_LITHIUM_PACKET: {
-                // TODO
+                err_t packet_valid =
+                    validateLithiumPacket(lithium_buffer, lithium_buffer_len);
+
+                if (packet_valid != LITHIUM_NO_ERROR) {
+                    state = SYSTEM_IDLE_STATE;
+                    break;
+                }
+
+                if (lithium_buffer[kLithiumCommandCodeByte] !=
+                    kReceivedDataCode) {
+                    state = SYSTEM_HANDLE_LITHIUM_COMMAND_RESPONSE;
+                    break;
+                }
+                memcpy(buffer, lithium_buffer, lithium_buffer_len);
+                buffer_len = lithium_buffer_len;
+
+                state = SYSTEM_HANDLE_PAYLOAD;
                 break;
             }
             case SYSTEM_HANDLE_PAYLOAD: {
                 handlePayload(payload_buffer, payload_buffer_len);
                 break;
+            }
+            case SYSTEM_HANDLE_LITHIUM_COMMAND_RESPONSE: {
+                // TODO(wschuetz) Handle responses from Lithium
             }
         }
     }
