@@ -1,7 +1,6 @@
-#include "umbilical.h"
-#include <string.h>
-#include "source/drivers/payload.h"
-#include "ti/devices/msp432e4/driverlib/driverlib.h"
+#include <source/drivers/payload.h>
+#include <source/drivers/umbilical.h>
+#include <ti/devices/msp432e4/driverlib/driverlib.h>
 
 #define UMBILICAL_UART UART1_BASE
 

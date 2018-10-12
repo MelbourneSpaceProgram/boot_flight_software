@@ -4,6 +4,11 @@
 #include "data_types.h"
 #include "source/internal_image.h"
 
+const uint32_t program_size = flight_software_length;
+constexpr uint32_t program_start_address = 0x00;
+constexpr uint32_t reset_failure_threshold = 100;
+constexpr uint32_t uart_read_timeout_ms = 100;
+
 enum UpdaterError {
     UPDATER_NO_ERROR = 0,
     UPDATER_ERROR_COUNT_EXCEEDED = 0x01,
@@ -32,11 +37,6 @@ enum Response {
     COMMAND_RET_FLASH_FAIL = 0x44,
     COMMAND_RET_CRC_FAIL = 0x45,
 };
-
-const uint32_t program_size = flight_software_length;
-constexpr uint32_t program_start_address = 0x00;
-constexpr uint32_t reset_failure_threshold = 100;
-constexpr uint32_t uart_read_timeout_ms = 100;
 
 enum ImageBaseAddress {
     Golden1 = 0x100000,
