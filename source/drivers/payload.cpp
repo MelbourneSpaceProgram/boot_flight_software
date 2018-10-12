@@ -1,6 +1,6 @@
-#include "payload.h"
-#include "source/drivers/memory.h"
-#include "source/updater/updater.h"
+#include <source/drivers/memory.h>
+#include <source/drivers/payload.h>
+#include <source/updater/updater.h>
 
 err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
     uint8_t packet_length = buffer[0];

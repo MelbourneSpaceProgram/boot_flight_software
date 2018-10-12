@@ -1,13 +1,6 @@
-#include "main.h"
+#include <main.h>
 #include <source/drivers/hal.h>
-//#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <ti/devices/msp432e4/driverlib/driverlib.h>
-#include "source/drivers/lithium.h"
-#include "source/drivers/payload.h"
-#include "source/drivers/umbilical.h"
-#include "source/updater/updater.h"
+#include <source/drivers/payload.h>
 
 int main(void) {
     init_clock();
