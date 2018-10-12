@@ -16,8 +16,7 @@ err_t validateUmbilicalPacket(uint8_t* buffer, uint8_t buffer_len) {
     }
 
     // Sync chars
-    if (buffer[0] != UMB_PACKET_SYNC_CHAR_1 ||
-        buffer[1] != UMB_PACKET_SYNC_CHAR_2) {
+    if (buffer[0] != kUmbilicalSyncChar1 || buffer[1] != kUmbilicalSyncChar2) {
         return UMB_BAD_PACKET_HEADER;
     }
 
