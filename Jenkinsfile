@@ -54,6 +54,8 @@ pipeline {
                 sh '''
                     tar cf CDH_software.tar.gz -C ${WORKSPACE} .
                     sudo docker run -td -e CCACHE_DIR=/ccache --mount source=ccache,target=/ccache --name ${docker_name} ccsv8_msp432e_gnu
+                    sudo docker exec -t $docker_name rm -rf /root/ws
+                    sudo docker exec -t $docker_name mkdir /root/ws
                     sudo docker exec -t $docker_name ccache -s
                     sudo docker cp ${WORKSPACE}/CDH_software.tar.gz $docker_name:/root/
 		    		sudo docker exec -t $docker_name mkdir /root/boot_flight_software

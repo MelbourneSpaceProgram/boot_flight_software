@@ -4,7 +4,8 @@
 
 #include "data_types.h"
 
-#define UMBILICAL_BUFFER_MAX_LEN 255
+constexpr uint32_t umbilical_buffer_max_len = 255;
+constexpr uint32_t payload_buffer_max_len = 255;
 
 enum UmbilicalStatus {
     UMB_NO_ERROR = 0x00,
