@@ -1,6 +1,6 @@
 #include "lithium.h"
-#include "ti/devices/msp432e4/driverlib/driverlib.h"
 #include <string.h>
+#include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
 uint8_t lithium_buffer_len;
@@ -21,8 +21,14 @@ void UART2_IRQHandler(void) {
     lithium_buffer_len = counter - 1;  // To account for the final ++
 }
 
-void CalcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
-                                const uint16_t data_size) {
+void LithiumUARTSend(const uint8_t* buffer, uint8_t buffer_len) {
+    while (buffer_len--) {
+        MAP_UARTCharPutNonBlocking(LITHIUM_UART, *buffer++);
+    }
+}
+
+void calcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
+                         const uint16_t data_size) {
     uint8_t check_byte_a = 0;
     uint8_t check_byte_b = 0;
     uint16_t i;
@@ -39,7 +45,7 @@ void CalcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
 err_t validateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len) {
     // Check sync chars
     if (!(buffer[0] == kLithiumSyncCharOne &&
-            buffer[1] == kLithiumSyncCharTwo)) {
+          buffer[1] == kLithiumSyncCharTwo)) {
         return LITHIUM_BAD_SYNC_BITS;
     }
     // Check direction
@@ -48,7 +54,7 @@ err_t validateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len) {
     }
     // Check checksum over non sync bytes (4 bytes)
     uint8_t checksum[2];
-    CalcLithiumChecksum(checksum, buffer + 2, 4);
+    calcLithiumChecksum(checksum, buffer + 2, 4);
     if (!(checksum[0] == buffer[6] && checksum[1] == buffer[7])) {
         return LITHIUM_BAD_HEADER_CHECKSUM;
     }
@@ -68,5 +74,41 @@ err_t getLithiumPacket(uint8_t* destination, uint8_t* buffer_len) {
     *buffer_len = lithium_buffer_len;
     MAP_UARTEnable(LITHIUM_UART);
 
+    return LITHIUM_NO_ERROR;
+}
+
+err_t buildLithiumHeader(uint8_t* buffer, uint8_t payload_size,
+                         LithiumCommandCodes command_code) {
+    if (command_code == kTransmitCommandCode) {
+        memcpy(buffer, kLithiumTransmitHeaderPrototype, kLithiumHeaderSize);
+        buffer[kLithiumPayloadSizeByte] = payload_size;
+        calcLithiumChecksum(buffer + 5, buffer, 6);
+    }
+    return LITHIUM_NO_ERROR;
+}
+
+err_t sendLithiumPacket(uint8_t* payload, uint8_t payload_size,
+                        LithiumCommandCodes command_code) {
+    if (payload_size > LITHIUM_BUFFER_MAX_LEN) {
+        return LITHIUM_BAD_PAYLOAD_LENGTH;
+    }
+    if (lithium_buffer_len != 0) {
+        // TODO(wschuetz) is this check necessary? Should not write to buffer
+        // if in use
+    }
+    err_t error =
+        buildLithiumHeader(lithium_buffer, payload_size, command_code);
+
+    if (error != LITHIUM_NO_ERROR) {
+        return error;
+    }
+    memcpy(lithium_buffer + 8, payload, payload_size);
+    // Add tail checksum
+    calcLithiumChecksum(lithium_buffer + payload_size + kLithiumHeaderSize,
+                        lithium_buffer + 2,
+                        kLithiumHeaderSize - 2 + payload_size);
+
+    LithiumUARTSend(lithium_buffer,
+                    kLithiumHeaderSize + payload_size + kLithiumTailSize);
     return LITHIUM_NO_ERROR;
 }

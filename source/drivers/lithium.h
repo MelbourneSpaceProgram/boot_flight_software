@@ -12,7 +12,8 @@ enum LithiumStatus {
     LITHIUM_NO_PACKET = 0x01,
     LITHIUM_BAD_SYNC_BITS = 0x02,
     LITHIUM_BAD_DIRECTION = 0x03,
-    LITHIUM_BAD_HEADER_CHECKSUM = 0x04
+    LITHIUM_BAD_HEADER_CHECKSUM = 0x04,
+    LITHIUM_BAD_PAYLOAD_LENGTH = 0X05,
 };
 
 enum LithiumCommandCodes {
@@ -37,14 +38,27 @@ constexpr uint8_t kLithiumSyncCharTwo = 0x65;
 constexpr uint8_t kLithiumDirectionIn = 0x10;
 constexpr uint8_t kLithiumDirectionOut = 0x20;
 
+constexpr uint8_t kLithiumHeaderSize = 0x08;
+constexpr uint8_t kLithiumTailSize = 0x02;
 constexpr uint8_t kLithiumSyncCharOneByte = 0x00;
 constexpr uint8_t kLithiumSyncCharTwoByte = 0x01;
 constexpr uint8_t kLithiumDirectioneByte = 0x02;
 constexpr uint8_t kLithiumCommandCodeByte = 0x03;
+constexpr uint8_t kLithiumPayloadSizeByte = 0x05;
 
-void CalcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
+constexpr uint8_t kLithiumTransmitHeaderPrototype[8] = {kLithiumSyncCharOne,
+                                                        kLithiumSyncCharTwo,
+                                                        kLithiumDirectionIn,
+                                                        kTransmitCommandCode,
+                                                        0x00, 0xBE, 0xBE, 0xBE};
+void LithiumUARTSend(const uint8_t* buffer, uint8_t buffer_len);
+void calcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
                          const uint16_t data_size);
 err_t validateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len);
 err_t getLithiumPacket(uint8_t* destination, uint8_t* buffer_len);
+err_t buildLithiumHeader(uint8_t* payload, uint8_t payload_length,
+                       LithiumCommandCodes command_code);
+err_t sendLithiumPacket(uint8_t* payload, uint8_t payload_length,
+                        LithiumCommandCodes command_code);
 
 #endif /* SOURCE_DRIVERS_LITHIUM_H_ */
