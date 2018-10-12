@@ -9,6 +9,7 @@ int main(void) {
     init_lithium_uart();
     init_umbilical_uart();
     init_flash_spi();
+    init_crc();
 
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
