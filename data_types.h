@@ -4,5 +4,6 @@
 #include <stdint.h>
 
 typedef uint8_t err_t;
+typedef uint8_t byte;
 
 #endif /* DATA_TYPES_H_ */
