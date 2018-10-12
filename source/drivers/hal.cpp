@@ -1,13 +1,8 @@
-#include "init_hal.h"
+#include <source/drivers/hal.h>
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
-// System clock rate in Hz
-uint32_t systemClock;
-
-
-
 err_t init_clock() {
-    systemClock = MAP_SysCtlClockFreqSet(
+    system_clock_hz = MAP_SysCtlClockFreqSet(
         SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
     return 0;
 }
@@ -50,7 +45,7 @@ err_t init_system_uart() {
     MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     MAP_UARTConfigSetExpClk(
-        UART0_BASE, systemClock, 500000,
+        UART0_BASE, system_clock_hz, 500000,
         UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
 
     // Double check what we get back
@@ -113,8 +108,8 @@ err_t init_flash_spi() {
     while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI1))) {
     }
 
-    MAP_SSIConfigSetExpClk(SSI1_BASE, systemClock, SSI_FRF_MOTO_MODE_0,
-                           SSI_MODE_MASTER, (systemClock / 24), 8);
+    MAP_SSIConfigSetExpClk(SSI1_BASE, system_clock_hz, SSI_FRF_MOTO_MODE_0,
+                           SSI_MODE_MASTER, (system_clock_hz / 24), 8);
     MAP_SSIEnable(SSI1_BASE);
 
     /* Flush the Receive FIFO */
