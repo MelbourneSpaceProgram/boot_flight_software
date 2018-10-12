@@ -33,7 +33,7 @@ enum Response {
     COMMAND_RET_CRC_FAIL = 0x45,
 };
 
-constexpr uint32_t program_size = sizeof(flight_software);
+const uint32_t program_size = flight_software_length;
 constexpr uint32_t program_start_address = 0x00;
 constexpr uint32_t reset_failure_threshold = 100;
 constexpr uint32_t uart_read_timeout_ms = 100;
