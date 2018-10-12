@@ -40,6 +40,7 @@ constexpr uint8_t kLithiumDirectionOut = 0x20;
 
 constexpr uint8_t kLithiumHeaderSize = 0x08;
 constexpr uint8_t kLithiumTailSize = 0x02;
+constexpr uint8_t kLithiumAX25HeaderSize = 16;
 constexpr uint8_t kLithiumSyncCharOneByte = 0x00;
 constexpr uint8_t kLithiumSyncCharTwoByte = 0x01;
 constexpr uint8_t kLithiumDirectioneByte = 0x02;

@@ -1,5 +1,5 @@
-#include <source/drivers/hal.h>
 #include "main.h"
+#include <source/drivers/hal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -25,8 +25,6 @@ int main(void) {
     uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
     uint8_t lithium_buffer_len;
 
-    uint8_t buffer[UMBILICAL_BUFFER_MAX_LEN];
-    uint32_t buffer_len;
     uint8_t payload_buffer[payload_buffer_max_len] = {0};
     uint32_t payload_buffer_len = 0;
 
@@ -87,8 +85,14 @@ int main(void) {
                     state = SYSTEM_HANDLE_LITHIUM_COMMAND_RESPONSE;
                     break;
                 }
-                memcpy(buffer, lithium_buffer, lithium_buffer_len);
-                buffer_len = lithium_buffer_len;
+                // Only copy the payload into the buffer not Lithium/AX25 header
+                memcpy(payload_buffer,
+                       lithium_buffer + kLithiumHeaderSize +
+                           kLithiumAX25HeaderSize,
+                       lithium_buffer_len - kLithiumHeaderSize -
+                           kLithiumAX25HeaderSize);
+                payload_buffer_len = lithium_buffer_len - kLithiumHeaderSize -
+                                     kLithiumAX25HeaderSize;
 
                 state = SYSTEM_HANDLE_PAYLOAD;
                 break;
