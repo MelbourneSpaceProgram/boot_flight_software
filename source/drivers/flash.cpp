@@ -1,18 +1,36 @@
-/*
-#include "flash.cpp"
-
-#include "ti/devices/msp432e4/driverlib/driverlib.h"
-
+#include <data_types.h>
+#include <source/drivers/flash.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ti/devices/msp432e4/driverlib/driverlib.h>
 
+void clearSpiFifo();
+err_t flashWrite32Bit(uint32_t* data, uint32_t length);
+
+err_t flashWrite32Bit(uint32_t* data, uint32_t length) {
+    uint32_t dummy_buffer[1];
+
+    for (uint32_t i = 0; i < length; i++) {
+        clearSpiFifo();
+        MAP_SSIDataPut(SSI1_BASE, data[i] >> 24 & 0xFF);
+        MAP_SSIDataPut(SSI1_BASE, data[i] >> 16 & 0xFF);
+        MAP_SSIDataPut(SSI1_BASE, data[i] >> 8 & 0xFF);
+        MAP_SSIDataPut(SSI1_BASE, data[i] >> 0 & 0xFF);
+
+        clearSpiFifo();
+    }
+
+    return 0;
+}
 err_t configureFlashSpi() {
-   //The SSI1 peripheral must be disabled, reset and re enabled for use
-    //Wait till the Peripheral ready is not asserted
+    // The SSI1 peripheral must be disabled, reset and re enabled for use
+    // Wait till the Peripheral ready is not asserted
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI1);
     MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_SSI1);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+
     while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI1))) {
     }
 
@@ -24,9 +42,11 @@ err_t configureFlashSpi() {
     while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOQ))) {
     }
 
+    GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_2);
+    flashDeselectChip();
+
     MAP_GPIOPinConfigure(GPIO_PB5_SSI1CLK);
-    MAP_GPIOPinConfigure(
-        GPIO_PB4_SSI1FSS);  // TODO(akremor): Might need to unconfigure
+    MAP_GPIOPinConfigure(GPIO_PB4_SSI1FSS);
     MAP_GPIOPinConfigure(GPIO_PE4_SSI1XDAT0);
     MAP_GPIOPinConfigure(GPIO_PE5_SSI1XDAT1);
 
@@ -41,21 +61,22 @@ err_t configureFlashSpi() {
 
     SSI1->CR1 |= SSI_CR1_HSCLKEN;
     MAP_SSIEnable(SSI1_BASE);
-    while (MAP_SSIDataGetNonBlocking(SSI1_BASE, &dummyRead[0])) {
-    }
 
     flash4ByteMode();
+
+    clearSpiFifo();
 
     return 0;
 }
 
 err_t flash4ByteMode() {
-    // TODO Configure the gpio in hal
     flashSelectChip();
 
     MAP_SSIDataPut(SSI1_BASE, EN4B);
 
     flashDeselectChip();
+
+    return 0;
 }
 
 err_t flashSelectChip() {
@@ -70,44 +91,89 @@ err_t flashDeselectChip() {
     return 0;
 }
 
-err_t flashRead(uint32_t base_address, uint32_t* read_buffer,
+err_t flashRead(uint32_t base_address, byte* read_buffer,
                 uint32_t buffer_length) {
-    // TODO(akremor): Place timeouts on this function
     flashSelectChip();
 
-    uint8_t dummy_buffer[1];
+    uint32_t dummy_buffer[1];
 
     MAP_SSIDataPut(SSI1_BASE, READ4B);
-    MAP_SSIDataGet(SSI1_BASE, dummy_buffer);
+    clearSpiFifo();
 
-    MAP_SSIDataPut(SSI1_BASE, base_address >> 24 & 0xFF);
-    MAP_SSIDataGet(SSI1_BASE, dummy_buffer);
+    flashWrite32Bit(&base_address, 1);
 
-    MAP_SSIDataPut(SSI1_BASE, base_address >> 16 & 0xFF);
-    MAP_SSIDataGet(SSI1_BASE, dummy_buffer);
-
-    MAP_SSIDataPut(SSI1_BASE, base_address >> 8 & 0xFF);
-    MAP_SSIDataGet(SSI1_BASE, dummy_buffer);
-
-    MAP_SSIDataPut(SSI1_BASE, base_address >> 0 & 0xFF);
-    MAP_SSIDataGet(SSI1_BASE, dummy_buffer);
-
-    for (int i = 0; i < buffer_length; i++) {
+    for (uint16_t i = 0; i < buffer_length; i++) {
         // Needed to clock the RX line
-
-        uint8_t temp_buffer[4];
-
-        for (int j = 0; j < 4; j++) {
-            MAP_SSIDataPut(SSI1_BASE, DUMMY_BYTE);
-            MAP_SSIDataGet(SSI1_BASE, temp_buffer[j]);
-        }
-
-        read_buffer[i] = temp_buffer[0] << 24 | temp_buffer[1] << 16 |
-                         temp_buffer[2] << 8 | temp_buffer[3] << 0;
+        MAP_SSIDataPut(SSI1_BASE, DUMMY_BYTE);
+        MAP_SSIDataGet(SSI1_BASE, (uint32_t*)&read_buffer[i]);
     }
 
     flashDeselectChip();
 
     return 0;
 }
-*/
+
+err_t flashWriteEnable() {
+    flashSelectChip();
+
+    clearSpiFifo();
+    MAP_SSIDataPut(SSI1_BASE, WREN);
+    clearSpiFifo();
+
+    flashDeselectChip();
+
+    return 0;
+}
+
+// Ensure this isn't used to write outside a page
+err_t flashWrite(uint32_t base_address, byte* write_buffer,
+                 uint32_t buffer_length) {
+    flashSelectChip();
+
+    byte sector_buffer[kSectorLength];
+    // This rounds to the base page address
+    uint32_t sector_address = base_address & 0xFFFFFF00;  // Last 8 bits zeroed
+
+    if (flashRead(sector_address, sector_buffer, kSectorLength) != 0) {
+        // TODO(dingbenjamin): Error code
+        flashDeselectChip();
+        return 1;
+    }
+
+    // Now merge in the new data to be written
+    memcpy(sector_buffer + (base_address - sector_address), write_buffer,
+           buffer_length);
+
+    flashWriteEnable();
+
+    // Erase the sector
+    clearSpiFifo();
+    MAP_SSIDataPut(SSI1_BASE, SE);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 24 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 16 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 8 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 0 & 0xFF);
+    clearSpiFifo();
+
+    clearSpiFifo();
+    MAP_SSIDataPut(SSI1_BASE, PP4);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 24 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 16 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 8 & 0xFF);
+    MAP_SSIDataPut(SSI1_BASE, sector_address >> 0 & 0xFF);
+    clearSpiFifo();
+
+    for (uint32_t i = 0; i < kPageLength; i++) {
+        MAP_SSIDataPut(SSI1_BASE, sector_buffer[i]);
+    }
+
+    flashDeselectChip();
+
+    return 0;
+}
+
+void clearSpiFifo() {
+    uint32_t dummyRead[1];
+    while (MAP_SSIDataGetNonBlocking(SSI1_BASE, &dummyRead[0])) {
+    }
+}
