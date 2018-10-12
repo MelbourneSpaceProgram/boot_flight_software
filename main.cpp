@@ -1,9 +1,9 @@
+#include <source/drivers/hal.h>
 #include "main.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
-#include "source/drivers/init_hal.h"
 #include "source/drivers/lithium.h"
 #include "source/drivers/payload.h"
 #include "source/drivers/umbilical.h"

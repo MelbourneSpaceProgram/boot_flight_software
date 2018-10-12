@@ -4,11 +4,14 @@
 #include "data_types.h"
 #include "source/internal_image.h"
 
-
 enum UpdaterError {
-    NO_ERROR = 0,
-
+    UPDATER_NO_ERROR = 0,
+    UPDATER_ERROR_COUNT_EXCEEDED = 0x01,
+    UPDATER_FAIL_SEND_SYNC_CHAR = 0x02,
+    UPDATER_TYPE_1_RESPONSE_TIMEOUT = 0x03,
+    UPDATER_TYPE_2_RESPONSE_TIMEOUT = 0x04,
 };
+
 enum State {
     IDLE_STATE = 0,
     PING_STATE = 1,
@@ -33,6 +36,7 @@ enum Response {
 constexpr uint32_t program_size = sizeof(flight_software);
 constexpr uint32_t program_start_address = 0x00;
 constexpr uint32_t reset_failure_threshold = 100;
+constexpr uint32_t uart_read_timeout_ms = 100;
 
 enum ImageBaseAddress {
     Golden1 = 0x100000,
@@ -52,7 +56,6 @@ enum ImageBaseAddress {
     Image10 = 0xF00000,
     Image11InMemory = 0x1000000,
 };
-
 
 err_t beginFirmwareUpdate(ImageBaseAddress image_base_address);
 

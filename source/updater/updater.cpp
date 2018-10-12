@@ -1,8 +1,8 @@
 #include "updater.h"
+#include <source/drivers/hal.h>
 #include <stdio.h>
 #include "assert.h"
 #include "data_types.h"
-#include "source/drivers/init_hal.h"
 #include "source/internal_image.h"
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
@@ -30,7 +30,7 @@ err_t getProgramBytes(ImageBaseAddress image_base_address,
         }
     }
 
-    return 0;
+    return UPDATER_NO_ERROR;
 }
 
 err_t sendCommand(uint8_t* buffer) {
@@ -40,7 +40,7 @@ err_t sendCommand(uint8_t* buffer) {
         UARTCharPut(SYS_MCU_UART, buffer[i]);
     }
 
-    return 0;
+    return UPDATER_NO_ERROR;
 }
 
 err_t sendPing() {
@@ -59,17 +59,14 @@ err_t setChecksum(uint8_t* command) {
 
     command[1] = sum_of_bytes & 0xFF;
 
-    return 0;
+    return UPDATER_NO_ERROR;
 }
 
 err_t sendSync() {
-    bool sync_char_1 = UARTCharPutNonBlocking(SYS_MCU_UART, 0x55);
-    bool sync_char_2 = UARTCharPutNonBlocking(SYS_MCU_UART, 0x55);
+    UARTCharPut(SYS_MCU_UART, 0x55);
+    UARTCharPut(SYS_MCU_UART, 0x55);
 
-    if (sync_char_1 != true || sync_char_2 != true) {
-        return 1;
-    }
-    return 0;
+    return UPDATER_NO_ERROR;
 }
 
 err_t sendDownload(uint32_t programAddress, uint32_t programSize) {
@@ -92,16 +89,19 @@ err_t sendDownload(uint32_t programAddress, uint32_t programSize) {
 
 err_t sendGetStatus() {
     uint8_t buffer[] = {0x03, 0x23, 0x23};
+
     return sendCommand(buffer);
 }
 
 err_t sendAckResponse() {
-    UARTCharPutNonBlocking(SYS_MCU_UART, ACK);
-    return 0;
+    UARTCharPut(SYS_MCU_UART, ACK);
+
+    return UPDATER_NO_ERROR;
 }
 
 err_t sendReset() {
     uint8_t buffer[] = {0x03, 0x25, 0x25};
+
     return sendCommand(buffer);
 }
 
@@ -124,8 +124,7 @@ err_t sendSendData(uint8_t* programData, uint8_t length) {
 err_t getType1Response(Response* command_response) {
     // Wait for packets available with some reset timer
 
-    // 100 ms
-    uint32_t timeout = 100000;  // TODO This value, like 5 seconds?
+    uint32_t timeout = uart_read_timeout_ms;
 
     while (timeout > 0) {
         if (UARTCharsAvail(SYS_MCU_UART)) {
@@ -139,20 +138,19 @@ err_t getType1Response(Response* command_response) {
                 if (value == ACK || value == NAK) {
                     *command_response = (Response)value;
                 }
-                return 0;
+                return UPDATER_NO_ERROR;
             }
         } else {
-            SysCtlDelay(120E6 * 0.001);
+            SysCtlDelay(system_clock_hz * 0.001);
             timeout--;
         }
     }
-    // TODO Error checking on the value read back?
-    return 1;
+
+    return UPDATER_TYPE_1_RESPONSE_TIMEOUT;
 }
 
 err_t getType2Response(Response* command_response) {
-    uint32_t timeout = 5000000;  // TODO This value, like 5 seconds?
-
+    uint32_t timeout = uart_read_timeout_ms;
     uint8_t received_value_count = 0;
 
     while (timeout > 0) {
@@ -166,40 +164,37 @@ err_t getType2Response(Response* command_response) {
             // The response, who cares about size etc
             // TODO
             *command_response = (Response)value;
-            return 0;
+
+            return UPDATER_NO_ERROR;
         }
-        SysCtlDelay(120E6 * 0.001);
+        SysCtlDelay(system_clock_hz * 0.001);
         timeout--;
     }
-    // TODO Error checking on the value read back?
-    return -1;
+
+    return UPDATER_TYPE_2_RESPONSE_TIMEOUT;
 }
+
 err_t clearFifo() {
     while (UARTCharsAvail(SYS_MCU_UART)) {
         UARTCharGetNonBlocking(SYS_MCU_UART);
     }
 
-    return 0;
+    return UPDATER_NO_ERROR;
 }
 
 err_t firmwareStateMachine(ImageBaseAddress image_address) {
     uint32_t reset_counter = 0;
-    bool led_flag = 1;
+    bool led_flag = true;
     uint32_t program_counter = 0;
     State state = IDLE_STATE;
 
     while (true) {
-        if (led_flag) {
-            led_flag = 0;
-            GPIOPinWrite(led_port, led_pin, 0);
-        } else {
-            led_flag = 1;
-            GPIOPinWrite(led_port, led_pin, led_pin);
-        }
+        led_flag = !led_flag;
+        GPIOPinWrite(led_port, led_pin, led_flag * led_pin);
 
         clearFifo();
         if (reset_counter > reset_failure_threshold) {
-            return -1;  // TODO
+            return UPDATER_ERROR_COUNT_EXCEEDED;
         }
 
         switch (state) {
@@ -209,26 +204,24 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
             }
             case SYNC_STATE: {
                 err_t sync_error = sendSync();
-                if (sync_error != NO_ERROR) {
+                if (sync_error != UPDATER_NO_ERROR) {
                     return sync_error;
                 }
 
-                // Am I receiving bytes here and then not dealing with them?
-
-                SysCtlDelay(120E6 * 0.001);
                 state = PING_STATE;
                 break;
             }
             case PING_STATE: {
                 err_t ping_error = sendPing();
-                if (ping_error != NO_ERROR) {
+                if (ping_error != UPDATER_NO_ERROR) {
                     return ping_error;
                 }
 
                 Response command_response = NAK;
                 err_t response_error = getType1Response(&command_response);
-                SysCtlDelay(120E6 * 0.001);
-                if (response_error == NO_ERROR && command_response == ACK) {
+
+                if (response_error == UPDATER_NO_ERROR &&
+                    command_response == ACK) {
                     state = DOWNLOAD_STATE;
                     break;
                 } else {
@@ -239,20 +232,21 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
             case DOWNLOAD_STATE: {
                 err_t download_error =
                     sendDownload(program_start_address, program_size);
-                if (download_error != NO_ERROR) {
+                if (download_error != UPDATER_NO_ERROR) {
                     return download_error;
                 }
 
                 Response command_response = NAK;
                 err_t response_error = getType1Response(&command_response);
 
-                if (response_error != NO_ERROR || command_response != ACK) {
+                if (response_error != UPDATER_NO_ERROR ||
+                    command_response != ACK) {
                     state = RESET_STATE;
                     break;
                 }
 
                 err_t status_error = sendGetStatus();
-                if (status_error != NO_ERROR) {
+                if (status_error != UPDATER_NO_ERROR) {
                     return status_error;
                 }
 
@@ -260,7 +254,7 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
                 err_t status_response_error =
                     getType2Response(&status_response);
 
-                if (status_response_error != NO_ERROR) {
+                if (status_response_error != UPDATER_NO_ERROR) {
                     state = RESET_STATE;
                     break;
                 }
@@ -279,20 +273,21 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
 
                 err_t data_error = sendSendData(programData, length);
 
-                if (data_error != NO_ERROR) {
+                if (data_error != UPDATER_NO_ERROR) {
                     return data_error;
                 }
 
                 Response command_response = NAK;
                 err_t response_error = getType1Response(&command_response);
 
-                if (response_error != NO_ERROR || command_response != ACK) {
+                if (response_error != UPDATER_NO_ERROR ||
+                    command_response != ACK) {
                     state = RESET_STATE;
                     break;
                 }
 
                 err_t status_error = sendGetStatus();
-                if (status_error != NO_ERROR) {
+                if (status_error != UPDATER_NO_ERROR) {
                     return status_error;
                 }
 
@@ -300,7 +295,7 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
                 err_t status_response_error =
                     getType2Response(&status_response);
 
-                if (status_response_error != NO_ERROR) {
+                if (status_response_error != UPDATER_NO_ERROR) {
                     state = RESET_STATE;
                     break;
                 }
@@ -321,14 +316,15 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
                 reset_counter++;
                 err_t reset_error = sendReset();
 
-                if (reset_error != NO_ERROR) {
+                if (reset_error != UPDATER_NO_ERROR) {
                     return reset_error;
                 }
 
                 Response command_response = NAK;
                 err_t response_error = getType1Response(&command_response);
 
-                if (response_error != NO_ERROR || command_response != ACK) {
+                if (response_error != UPDATER_NO_ERROR ||
+                    command_response != ACK) {
                     state = RESET_STATE;
                     break;
                 }
@@ -337,11 +333,11 @@ err_t firmwareStateMachine(ImageBaseAddress image_address) {
                 break;
             }
             case SUCCESS_STATE: {
-                return NO_ERROR;
+                return UPDATER_NO_ERROR;
             }
         }
     }
-    return NO_ERROR;
+    return UPDATER_NO_ERROR;
 }
 
 err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
@@ -352,7 +348,7 @@ err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
 
     // Trigger a reset to get it back into the bootloader by pulling nRESET low
     GPIOPinWrite(sys_reset_port, sys_reset_pin, 0);
-    SysCtlDelay(120E6 / 8);
+    SysCtlDelay(system_clock_hz * 0.001);
     GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
 
     err_t update_error = firmwareStateMachine(image_address);
