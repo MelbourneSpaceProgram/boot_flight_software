@@ -4,7 +4,6 @@
 #include "data_types.h"
 #include "source/internal_image.h"
 
-err_t sendCommand(uint8_t* buffer);
 
 enum UpdaterError {
     NO_ERROR = 0,
@@ -54,8 +53,7 @@ enum ImageBaseAddress {
     Image11InMemory = 0x1000000,
 };
 
-err_t setChecksum(uint8_t* command);
-err_t updateFirmware(ImageBaseAddress image_address);
-err_t beginFirmwareUpdate(ImageBaseAddress image_address);
+
+err_t beginFirmwareUpdate(ImageBaseAddress image_base_address);
 
 #endif /* SOURCE_UPDATER_UPDATER_H_ */

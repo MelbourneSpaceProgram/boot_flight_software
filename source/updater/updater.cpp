@@ -8,6 +8,9 @@
 
 #define SYS_MCU_UART UART0_BASE
 
+err_t sendCommand(uint8_t* buffer);
+err_t setChecksum(uint8_t* command);
+
 err_t getProgramBytes(ImageBaseAddress image_base_address,
                       uint32_t program_counter, uint8_t* buffer,
                       uint8_t* buffer_len) {
@@ -179,10 +182,11 @@ err_t clearFifo() {
     return 0;
 }
 
-err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
-                           uint32_t* program_counter) {
+err_t firmwareStateMachine(ImageBaseAddress image_address) {
     uint32_t reset_counter = 0;
     bool led_flag = 1;
+    uint32_t program_counter = 0;
+    State state = IDLE_STATE;
 
     while (true) {
         if (led_flag) {
@@ -198,9 +202,9 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
             return -1;  // TODO
         }
 
-        switch (*state) {
+        switch (state) {
             case IDLE_STATE: {
-                *state = SYNC_STATE;
+                state = SYNC_STATE;
                 break;
             }
             case SYNC_STATE: {
@@ -212,7 +216,7 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 // Am I receiving bytes here and then not dealing with them?
 
                 SysCtlDelay(120E6 * 0.001);
-                *state = PING_STATE;
+                state = PING_STATE;
                 break;
             }
             case PING_STATE: {
@@ -225,10 +229,10 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
                 SysCtlDelay(120E6 * 0.001);
                 if (response_error == NO_ERROR && command_response == ACK) {
-                    *state = DOWNLOAD_STATE;
+                    state = DOWNLOAD_STATE;
                     break;
                 } else {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
             }
@@ -243,7 +247,7 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
 
                 if (response_error != NO_ERROR || command_response != ACK) {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
 
@@ -257,20 +261,20 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     getType2Response(&status_response);
 
                 if (status_response_error != NO_ERROR) {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
 
                 sendAckResponse();
 
-                *state = SEND_DATA_STATE;
+                state = SEND_DATA_STATE;
                 break;
             }
             case SEND_DATA_STATE: {
                 uint8_t programData[32];
                 uint8_t length;
 
-                getProgramBytes(image_address, *program_counter, programData,
+                getProgramBytes(image_address, program_counter, programData,
                                 &length);
 
                 err_t data_error = sendSendData(programData, length);
@@ -283,7 +287,7 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
 
                 if (response_error != NO_ERROR || command_response != ACK) {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
 
@@ -297,18 +301,18 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                     getType2Response(&status_response);
 
                 if (status_response_error != NO_ERROR) {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
 
                 sendAckResponse();
 
-                *program_counter += length;
-                if (*program_counter == program_size) {
-                    *state = RESET_STATE;
+                program_counter += length;
+                if (program_counter == program_size) {
+                    state = RESET_STATE;
                     break;
                 } else {
-                    *state = SEND_DATA_STATE;
+                    state = SEND_DATA_STATE;
                     break;
                 }
                 break;
@@ -325,11 +329,11 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
                 err_t response_error = getType1Response(&command_response);
 
                 if (response_error != NO_ERROR || command_response != ACK) {
-                    *state = RESET_STATE;
+                    state = RESET_STATE;
                     break;
                 }
 
-                *state = SUCCESS_STATE;
+                state = SUCCESS_STATE;
                 break;
             }
             case SUCCESS_STATE: {
@@ -338,15 +342,6 @@ err_t firmwareStateMachine(State* state, ImageBaseAddress image_address,
         }
     }
     return NO_ERROR;
-}
-
-err_t updateFirmware(ImageBaseAddress image_address) {
-    State state = IDLE_STATE;
-    uint32_t program_counter = 0;
-
-    firmwareStateMachine(&state, image_address, &program_counter);
-
-    return 0;
 }
 
 err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
@@ -360,7 +355,7 @@ err_t beginFirmwareUpdate(ImageBaseAddress image_address) {
     SysCtlDelay(120E6 / 8);
     GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
 
-    err_t update_error = updateFirmware(image_address);
+    err_t update_error = firmwareStateMachine(image_address);
 
     GPIOPinWrite(led_port, led_pin, led_pin);
     GPIOPinWrite(update_trigger_port, update_trigger_pin, update_trigger_pin);
