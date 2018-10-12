@@ -119,3 +119,16 @@ err_t init_flash_spi() {
 
     return 0;
 }
+
+err_t init_crc() {
+    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_CCM0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_CCM0);
+    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_CCM0))) {
+    }
+
+    MAP_CRCConfigSet(CCM0_BASE, (CRC_CFG_IBR | CRC_CFG_OBR | CRC_CFG_RESINV |
+                                 CRC_CFG_INIT_1 | CRC_CFG_TYPE_P1EDC6F41 |
+                                 CRC_CFG_SIZE_8BIT));
+
+    return 0;
+}

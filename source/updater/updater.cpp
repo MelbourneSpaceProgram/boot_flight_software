@@ -1,37 +1,14 @@
 #include "updater.h"
 #include <source/drivers/hal.h>
-#include <stdio.h>
-#include "assert.h"
+#include <source/drivers/memory.h>
+#include <ti/devices/msp432e4/driverlib/driverlib.h>
 #include "data_types.h"
 #include "source/internal_image.h"
-#include "ti/devices/msp432e4/driverlib/driverlib.h"
 
 #define SYS_MCU_UART UART0_BASE
 
 err_t sendCommand(uint8_t* buffer);
 err_t setChecksum(uint8_t* command);
-
-err_t getProgramBytes(ImageBaseAddress image_base_address,
-                      uint32_t program_counter, uint8_t* buffer,
-                      uint8_t* buffer_len) {
-    // Read from memory using a switch state
-
-    if (image_base_address == Image11InMemory) {
-        uint8_t bytes_to_read = 32;
-
-        if (program_size - program_counter < 32) {
-            bytes_to_read = program_size - program_counter;
-        }
-
-        *buffer_len = bytes_to_read;
-        // Max buffer size will be 32; TODO Check this
-        for (int i = 0; i < bytes_to_read; i++) {
-            buffer[i] = flight_software[program_counter + i];
-        }
-    }
-
-    return UPDATER_NO_ERROR;
-}
 
 err_t sendCommand(uint8_t* buffer) {
     setChecksum(buffer);

@@ -36,5 +36,27 @@ err_t writeBytesToMemory(ImageBaseAddress image, uint32_t start_address,
         // TOOD(akremor): Integrate in the flash memory API (physical chip)
     }
 
-    return 0;
+    return MEMORY_NO_ERROR;
+}
+
+err_t getProgramBytes(ImageBaseAddress image_base_address,
+                      uint32_t program_counter, uint8_t* buffer,
+                      uint8_t* buffer_len) {
+    // Read from memory using a switch state
+
+    if (image_base_address == Image11InMemory) {
+        uint8_t bytes_to_read = 32;
+
+        if (program_size - program_counter < 32) {
+            bytes_to_read = program_size - program_counter;
+        }
+
+        *buffer_len = bytes_to_read;
+        // Max buffer size will be 32; TODO Check this
+        for (int i = 0; i < bytes_to_read; i++) {
+            buffer[i] = flight_software[program_counter + i];
+        }
+    }
+
+    return MEMORY_NO_ERROR;
 }

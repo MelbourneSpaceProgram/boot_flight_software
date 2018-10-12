@@ -19,5 +19,6 @@ err_t init_lithium_uart();
 err_t init_umbilical_uart();
 err_t init_flash_spi();
 err_t init_clock();
+err_t init_crc();
 
 #endif /* SOURCE_DRIVERS_HAL_H_ */

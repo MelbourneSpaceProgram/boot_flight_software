@@ -14,5 +14,8 @@ enum MemoryError {
 
 err_t writeBytesToMemory(ImageBaseAddress image, uint32_t start_address,
                          uint8_t* data, uint32_t data_size);
+err_t getProgramBytes(ImageBaseAddress image_base_address,
+                      uint32_t program_counter, uint8_t* buffer,
+                      uint8_t* buffer_len);
 
 #endif /* SOURCE_DRIVERS_MEMORY_H_ */
