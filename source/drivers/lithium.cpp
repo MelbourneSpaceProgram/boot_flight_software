@@ -61,6 +61,49 @@ err_t validateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len) {
     return LITHIUM_NO_ERROR;
 }
 
+err_t authenticateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len) {
+    uint32_t* signature_bytes =
+        (uint32_t*)(buffer + kLithiumHeaderSize + kLithiumAX25HeaderSize);
+    uint32_t* payload_to_authenticate =
+        (uint32_t*)(buffer + kLithiumHeaderSize + kLithiumAX25HeaderSize +
+                    kLithiumSignatureSize);
+    uint8_t buffer_len_32;
+
+    // Zero pad the last word if required
+    uint8_t remainder = buffer_len % sizeof(uint32_t);
+    if (remainder != 0) {
+        buffer_len_32 = buffer_len / sizeof(uint32_t) + 1;
+        //Get pointer to last word. Cast to look at word as 4 bytes.
+        uint8_t* word_to_zero_pad =
+            (uint8_t*)(payload_to_authenticate + buffer_len_32 - 1);
+        for (uint8_t i = 0; i < remainder; i++) {
+            word_to_zero_pad[3-i] = 0;
+        }
+    } else {
+        // No zero padding required
+        buffer_len_32 = buffer_len / sizeof(uint32_t);
+    }
+
+    uint32_t hash_result[5] = {0};  // Hash algorithm returns 5 words
+
+    // Configure the SHA/MD5 module for the SHA1 algorithm.
+    MAP_SHAMD5Reset(SHAMD5_BASE);
+    MAP_SHAMD5ConfigSet(SHAMD5_BASE, SHAMD5_ALGO_HMAC_SHA1);
+
+    // Copy the Key to SHA/MD5 module.
+    MAP_SHAMD5HMACKeySet(SHAMD5_BASE, (uint32_t*)kHmacKey);
+
+    // Copy the data to SHA/MD5 module and begin the HMAC generation.
+    MAP_SHAMD5HMACProcess(SHAMD5_BASE, payload_to_authenticate, buffer_len,
+                          hash_result);
+
+    if (signature_bytes[0] != hash_result[0]) {
+        return LITHIUM_BAD_HASH;
+    }
+
+    return LITHIUM_NO_ERROR;
+}
+
 err_t getLithiumPacket(uint8_t* destination, uint8_t* buffer_len) {
     // Disable UART to ensure we do not get interrupted half way through copying
     // the packet

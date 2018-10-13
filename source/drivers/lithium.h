@@ -14,6 +14,7 @@ enum LithiumStatus {
     LITHIUM_BAD_DIRECTION = 0x03,
     LITHIUM_BAD_HEADER_CHECKSUM = 0x04,
     LITHIUM_BAD_PAYLOAD_LENGTH = 0X05,
+    LITHIUM_BAD_HASH = 0x06
 };
 
 enum LithiumCommandCodes {
@@ -33,6 +34,9 @@ enum LithiumCommandCodes {
     kFastSetPaCommandCode = 0x20,
 };
 
+// TODO(wschuetz): A proper key needs to be decided on.
+constexpr uint8_t kHmacKey[] = "SuperSecretKey";
+
 constexpr uint8_t kLithiumSyncCharOne = 0x48;
 constexpr uint8_t kLithiumSyncCharTwo = 0x65;
 constexpr uint8_t kLithiumDirectionIn = 0x10;
@@ -41,6 +45,7 @@ constexpr uint8_t kLithiumDirectionOut = 0x20;
 constexpr uint8_t kLithiumHeaderSize = 0x08;
 constexpr uint8_t kLithiumTailSize = 0x02;
 constexpr uint8_t kLithiumAX25HeaderSize = 16;
+constexpr uint8_t kLithiumSignatureSize = 4;
 constexpr uint8_t kLithiumSyncCharOneByte = 0x00;
 constexpr uint8_t kLithiumSyncCharTwoByte = 0x01;
 constexpr uint8_t kLithiumDirectioneByte = 0x02;
@@ -56,6 +61,7 @@ void LithiumUARTSend(const uint8_t* buffer, uint8_t buffer_len);
 void calcLithiumChecksum(uint8_t* checksum, const uint8_t* data,
                          const uint16_t data_size);
 err_t validateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len);
+err_t authenticateLithiumPacket(const uint8_t* buffer, uint8_t buffer_len);
 err_t getLithiumPacket(uint8_t* destination, uint8_t* buffer_len);
 err_t buildLithiumHeader(uint8_t* payload, uint8_t payload_length,
                        LithiumCommandCodes command_code);

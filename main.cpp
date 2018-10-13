@@ -85,7 +85,17 @@ int main(void) {
                     state = SYSTEM_HANDLE_LITHIUM_COMMAND_RESPONSE;
                     break;
                 }
-                // Only copy the payload into the buffer not Lithium/AX25 header
+
+                err_t packet_authenticated = authenticateLithiumPacket(
+                    lithium_buffer, lithium_buffer_len);
+
+                if (packet_authenticated == LITHIUM_BAD_HASH) {
+                    state = SYSTEM_IDLE_STATE;
+                    break;
+                }
+
+                // Only copy the payload into the buffer not Lithium/AX25
+                // header
                 memcpy(payload_buffer,
                        lithium_buffer + kLithiumHeaderSize +
                            kLithiumAX25HeaderSize,
