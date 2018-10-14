@@ -7,6 +7,7 @@
 enum SystemState {
     SYSTEM_IDLE_STATE = 0,
     SYSTEM_HANDLE_PAYLOAD = 1,
+    SYSTEM_HANDLE_UMBILICAL_PACKET = 2,
 };
 
 #endif /* MAIN_H_ */
