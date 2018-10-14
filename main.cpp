@@ -48,6 +48,7 @@ int main(void) {
                 err_t umb_packet_error =
                     getUmbilicalPacket(umbilical_buffer, &umbilical_buffer_len);
                 umbilical_buffer_len = 0;
+                // TODO(wschuetz) change to SYSTEM_HANDLE_PAYLOAD when needed
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
