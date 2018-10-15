@@ -1,8 +1,8 @@
 #include <source/drivers/payload.h>
 #include <source/drivers/umbilical.h>
+#include <source/globals.h>
 #include <string.h>
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
-#include <source/globals.h>
 
 uint8_t umbilical_buffer[UMBILICAL_BUFFER_MAX_LEN];
 uint8_t umbilical_buffer_len;
@@ -19,12 +19,13 @@ err_t umbilicalRead() {
     uint32_t counter = 0;
 
     // Read in the sync and size bytes
-    while (counter < sizeof(uint8_t) * 3) {
+    while (counter < 3) {
         umbilical_buffer[counter] = (uint8_t)MAP_UARTCharGet(UMBILICAL_UART);
         counter++;
     }
 
-    err_t validated_header = validateUmbilicalHeader(umbilical_buffer, 3);
+    err_t validated_header =
+        validateUmbilicalHeader(umbilical_buffer, (uint8_t)3);
 
     if (validated_header != UMB_NO_ERROR) {
         return validated_header;
@@ -55,7 +56,7 @@ err_t validateUmbilicalHeader(uint8_t* buffer, uint8_t buffer_len) {
     return UMB_NO_ERROR;
 }
 
-err_t getUmbilicalPacket(uint8_t* destination, uint8_t* buffer_len) {
+err_t getUmbilicalPacket(uint8_t* destination, uint32_t* buffer_len) {
     // Disable UART to ensure we do not get interrupted half way through copying
     // the packet
     MAP_UARTDisable(UMBILICAL_UART);

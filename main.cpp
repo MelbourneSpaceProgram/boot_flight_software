@@ -18,9 +18,6 @@ int main(void) {
 
     SYSTEM_FLAGS = 0;
 
-    uint8_t umbilical_buffer_len = 0;
-    uint8_t umbilical_buffer[umbilical_buffer_max_len] = {0};
-
     uint32_t payload_buffer_len = 0;
     uint8_t payload_buffer[payload_buffer_max_len] = {0};
 
@@ -41,19 +38,17 @@ int main(void) {
                 err_t read_successful = umbilicalRead();
                 SYSTEM_FLAGS &= !kUmbilicalReadBitMask;
                 if (read_successful != UMB_NO_ERROR) {
-                    umbilical_buffer_len = 0;
                     state = SYSTEM_IDLE_STATE;
                     break;
                 }
                 err_t umb_packet_error =
-                    getUmbilicalPacket(umbilical_buffer, &umbilical_buffer_len);
-                umbilical_buffer_len = 0;
+                    getUmbilicalPacket(payload_buffer, &payload_buffer_len);
                 // TODO(wschuetz) change to SYSTEM_HANDLE_PAYLOAD when needed
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
             case SYSTEM_HANDLE_PAYLOAD: {
-                handlePayload(payload_buffer, umbilical_buffer_len);
+                handlePayload(payload_buffer, (uint8_t)payload_buffer_len);
                 break;
             }
         }

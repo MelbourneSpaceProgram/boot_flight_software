@@ -24,7 +24,7 @@ enum UmbilicalStatus {
 };
 
 err_t umbilicalRead();
-err_t getUmbilicalPacket(uint8_t* destination, uint8_t* buffer_len);
+err_t getUmbilicalPacket(uint8_t* destination, uint32_t* buffer_len);
 err_t validateUmbilicalHeader(uint8_t* buffer, uint8_t buffer_len);
 
 #endif /* SOURCE_DRIVERS_UMBILICAL_H_ */
