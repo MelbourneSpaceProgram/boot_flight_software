@@ -3,7 +3,7 @@
 
 err_t init_clock() {
     system_clock_hz = MAP_SysCtlClockFreqSet(
-        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 10000000);
     return 0;
 }
 
@@ -26,6 +26,28 @@ err_t init_gpio() {
     GPIOPinWrite(update_trigger_port, update_trigger_pin, update_trigger_pin);
 
     GPIOPinWrite(led_port, led_pin, led_pin);
+
+    return 0;
+}
+
+err_t init_hibernate() {
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_HIBERNATE);
+    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_HIBERNATE))) {
+    }
+
+    if (!MAP_HibernateIsActive()) {
+        MAP_HibernateEnableExpClk(system_clock_hz);
+        HibernateClockConfig(HIBERNATE_OSC_LFIOSC);
+
+        MAP_HibernateWakeSet(HIBERNATE_WAKE_RTC);
+        MAP_HibernateRTCEnable();
+        MAP_HibernateRTCSet(0);
+
+        HIB->CTL |= HIB_CTL_VDD3ON;
+    }
+
+    MAP_HibernateIntEnable(HIBERNATE_INT_RTC_MATCH_0);
+    MAP_IntEnable(INT_HIBERNATE);
 
     return 0;
 }
@@ -88,9 +110,9 @@ err_t init_umbilical_uart() {
     MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     // Configure the UART for 115,200, 8-N-1 operation.
-    MAP_UARTConfigSetExpClk(UART1_BASE, system_clock_hz, 9600,
-                            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                             UART_CONFIG_PAR_NONE));
+    MAP_UARTConfigSetExpClk(
+        UART1_BASE, system_clock_hz, 9600,
+        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 
     // Enable the UART interrupt.
     MAP_IntEnable(INT_UART1);

@@ -6,9 +6,38 @@
 
 uint8_t SYSTEM_FLAGS;
 
+extern "C" {
+volatile bool hibernate_on_boot = true;
+void HIBERNATE_IRQHandler(void) {
+    uint32_t getIntStatus;
+
+    /* Get the Hibernate Interrupt Status*/
+    getIntStatus = MAP_HibernateIntStatus(true);
+
+    if (getIntStatus == HIBERNATE_INT_RTC_MATCH_0) {
+        MAP_HibernateIntClear(HIBERNATE_INT_RTC_MATCH_0);
+        hibernate_on_boot = false;
+    }
+}
+}
+
 int main(void) {
     init_clock();
     init_gpio();
+    init_hibernate();
+
+    if (hibernate_on_boot) {
+        SysCtlDelay(30 * system_clock_hz);  // 30 second wait before hibernating
+        GPIOPinWrite(sys_reset_port, sys_reset_pin, 0x00);
+        MAP_HibernateRTCMatchSet(0, (MAP_HibernateRTCGet() + hibernate_time_s));
+        MAP_HibernateRequest();
+
+        while (1) {
+        }
+    }
+
+    GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
+
     init_system_uart();
     init_lithium_uart();
     init_umbilical_uart();
