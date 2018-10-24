@@ -28,7 +28,7 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
                          buffer[12] << 0;
 
         // Confirm the CRC is valid
-        // Reset the CRC module to clear out any previous calcuations
+        // Reset the CRC module to clear out any previous calculations
         init_crc();
 
         uint32_t program_counter = 0;

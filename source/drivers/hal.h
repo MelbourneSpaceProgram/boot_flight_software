@@ -20,6 +20,6 @@ err_t init_umbilical_uart();
 err_t init_flash_spi();
 err_t init_clock();
 err_t init_crc();
-init_hibernate();
+err_t init_hibernate();
 
 #endif /* SOURCE_DRIVERS_HAL_H_ */
