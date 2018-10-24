@@ -3,6 +3,6 @@
 
 extern uint8_t SYSTEM_FLAGS;
 
-constexpr uint32_t hibernate_time_s = 15;
+constexpr uint32_t hibernate_time_s = 30;
 
 #endif /* SOURCE_GLOBALS_H_ */
