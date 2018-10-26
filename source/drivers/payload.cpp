@@ -10,9 +10,9 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
 
     if (command_id == PAYLOAD_FIRMWARE_PIECE) {
         uint32_t image_base_address =
-            buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
-        uint32_t image_patch_address = buffer[9] << 24 | buffer[10] << 16 |
-                                       buffer[11] << 8 | buffer[12] << 0;
+            buffer[5] << 0 | buffer[6] << 8 | buffer[7] << 16 | buffer[8] << 24;
+        uint32_t image_patch_address = buffer[9] << 0 | buffer[10] << 8 |
+                                       buffer[11] << 16 | buffer[12] << 24;
 
         uint32_t patch_length_bytes = packet_length - 13;
 
@@ -22,10 +22,10 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
 
     } else if (command_id == PAYLOAD_INITIATE_UPDATE) {
         uint32_t image_base_address =
-            buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
+            buffer[5] << 0 | buffer[6] << 8 | buffer[7] << 16 | buffer[8] << 24;
         uint32_t image_checksum __attribute__((unused));
-        image_checksum = buffer[9] << 24 | buffer[10] << 16 | buffer[11] << 8 |
-                         buffer[12] << 0;
+        image_checksum = buffer[9] << 0 | buffer[10] << 8 | buffer[11] << 16 |
+                         buffer[12] << 24;
 
         // Confirm the CRC is valid
         // Reset the CRC module to clear out any previous calculations
@@ -33,32 +33,33 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
 
         uint32_t program_counter = 0;
 
-        while (program_counter < flight_software_length) {
-            uint8_t image_bytes[32];
+        if (0) {
+            while (program_counter < flight_software_length) {
+                uint8_t image_bytes[32];
 
-            uint8_t bytes_read = 0;
-            err_t bytes_error =
-                getProgramBytes((ImageBaseAddress)image_base_address,
-                                program_counter, image_bytes, &bytes_read);
+                uint8_t bytes_read = 0;
+                err_t bytes_error =
+                    getProgramBytes((ImageBaseAddress)image_base_address,
+                                    program_counter, image_bytes, &bytes_read);
 
-            for (uint8_t i = 0; i < 32; i++) {
-                CRCDataWrite(CCM0_BASE, image_bytes[i]);
+                for (uint8_t i = 0; i < 32; i++) {
+                    CRCDataWrite(CCM0_BASE, image_bytes[i]);
+                }
             }
-        }
 
-        uint32_t crc_result_raw = CRCResultRead(CCM0_BASE, true);
-        // Endianess needs to be corrected to match the golden test set. Likely
-        // a config issue but this 'works'.
-        // Given: 0x31 0x32 0x33 0x34 0x35 0x36 0x37 0x38 0x39
-        // Expect: 0xE3069283
+            uint32_t crc_result_raw = CRCResultRead(CCM0_BASE, true);
+            // Endianess needs to be corrected to match the golden test set.
+            // Likely a config issue but this 'works'. Given: 0x31 0x32 0x33
+            // 0x34 0x35 0x36 0x37 0x38 0x39 Expect: 0xE3069283
 
-        uint32_t crc_result = ((crc_result_raw >> 24) & 0xff) |
-                              ((crc_result_raw << 8) & 0xff0000) |
-                              ((crc_result_raw >> 8) & 0xff00) |
-                              ((crc_result_raw << 24) & 0xff000000);
+            uint32_t crc_result = ((crc_result_raw >> 24) & 0xff) |
+                                  ((crc_result_raw << 8) & 0xff0000) |
+                                  ((crc_result_raw >> 8) & 0xff00) |
+                                  ((crc_result_raw << 24) & 0xff000000);
 
-        if (crc_result != image_checksum) {
-            return PAYLOAD_IMAGE_FAILED_CHECKSUM;
+            if (crc_result != image_checksum) {
+                return PAYLOAD_IMAGE_FAILED_CHECKSUM;
+            }
         }
 
         err_t firmware_update_error =
@@ -66,9 +67,9 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
         return firmware_update_error;
     } else if (command_id == PAYLOAD_COPY_IMAGE) {
         uint32_t image_base_address =
-            buffer[5] << 24 | buffer[6] << 16 | buffer[7] << 8 | buffer[8] << 0;
-        uint32_t image_dest_address = buffer[9] << 24 | buffer[10] << 16 |
-                                      buffer[11] << 8 | buffer[12] << 0;
+            buffer[5] << 0 | buffer[6] << 8 | buffer[7] << 16 | buffer[8] << 24;
+        uint32_t image_dest_address = buffer[9] << 0 | buffer[10] << 8 |
+                                      buffer[11] << 16 | buffer[12] << 24;
 
         // TODO
 

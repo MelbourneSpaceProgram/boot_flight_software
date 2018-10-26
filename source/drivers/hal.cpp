@@ -1,6 +1,26 @@
 #include <source/drivers/hal.h>
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
+extern "C" {
+volatile bool hibernate_on_boot = false;
+void HIBERNATE_IRQHandler(void) {
+    uint32_t getIntStatus;
+
+    /* Get the Hibernate Interrupt Status*/
+    getIntStatus = MAP_HibernateIntStatus(true);
+
+    if (getIntStatus == HIBERNATE_INT_RTC_MATCH_0) {
+        MAP_HibernateIntClear(HIBERNATE_INT_RTC_MATCH_0);
+        hibernate_on_boot = false;
+    }
+}
+}
+
+err_t should_hibernate_on_boot(bool* should_hibernate) {
+    *should_hibernate = hibernate_on_boot;
+    return 0;
+}
+
 err_t init_clock() {
     system_clock_hz = MAP_SysCtlClockFreqSet(
         SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 10000000);
@@ -36,8 +56,8 @@ err_t init_hibernate() {
     }
 
     if (!MAP_HibernateIsActive()) {
-        MAP_HibernateEnableExpClk(system_clock_hz);
         HibernateClockConfig(HIBERNATE_OSC_LFIOSC);
+        MAP_HibernateEnableExpClk(system_clock_hz);
 
         MAP_HibernateWakeSet(HIBERNATE_WAKE_RTC);
         MAP_HibernateRTCEnable();
@@ -79,46 +99,51 @@ err_t init_system_uart() {
 }
 
 err_t init_lithium_uart() {
-    /* Enable the GPIO Peripheral used by the UART */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA))) {
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    while (!(SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA))) {
     }
 
-    /* Enable UART0 */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART2);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART2);
 
-    /* Configure GPIO Pins for UART mode */
-    MAP_GPIOPinConfigure(GPIO_PA6_U2RX);
-    MAP_GPIOPinConfigure(GPIO_PA7_U2TX);
-    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+    GPIOPinConfigure(GPIO_PA6_U2RX);
+    GPIOPinConfigure(GPIO_PA7_U2TX);
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_6 | GPIO_PIN_7);
+
+    UARTConfigSetExpClk(
+        UART2_BASE, system_clock_hz, 9600,
+        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+
+    // Enable the UART interrupt.
+    IntEnable(INT_UART2);
+    UARTIntEnable(UART2_BASE, UART_INT_RX | UART_INT_RT);
+    UARTEnable(UART2_BASE);
+
+    UARTFIFOLevelSet(UART2_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 
     return 0;
 }
 
 err_t init_umbilical_uart() {
-    /* Enable the GPIO Peripheral used by the UART */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB))) {
     }
 
-    /* Enable UART0 */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
 
-    /* Configure GPIO Pins for UART mode */
     MAP_GPIOPinConfigure(GPIO_PB0_U1RX);
     MAP_GPIOPinConfigure(GPIO_PB1_U1TX);
     MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
-    // Configure the UART for 115,200, 8-N-1 operation.
     MAP_UARTConfigSetExpClk(
         UART1_BASE, system_clock_hz, 9600,
         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 
     // Enable the UART interrupt.
     MAP_IntEnable(INT_UART1);
-    MAP_UARTIntEnable(UART1_BASE, UART_INT_RX);
-
+    UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT);
     MAP_UARTEnable(UART1_BASE);
+
+    UARTFIFOLevelSet(UART1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 
     return 0;
 }

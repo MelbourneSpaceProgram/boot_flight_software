@@ -1,6 +1,6 @@
 MEMORY
 {
-    FLASH (RX) : ORIGIN = 0x00000000, LENGTH = 0x00100000
+    FLASH (WRX) : ORIGIN = 0x00000000, LENGTH = 0x00100000
     SRAM (WX)  : ORIGIN = 0x20000000, LENGTH = 0x00040000
 }
 
@@ -28,6 +28,11 @@ SECTIONS {
     .vtable (_vtable_base_address) : AT (_vtable_base_address) {
         KEEP (*(.vtable))
     } > REGION_DATA
+
+	    .image 0x18000 :
+	  {
+	    KEEP(*(.image))
+	  } > REGION_TEXT
 
     .text : {
         CREATE_OBJECT_SYMBOLS

@@ -1,24 +1,41 @@
-#include "lithium.h"
+#include <source/drivers/lithium.h>
+#include <source/drivers/ring_buffer.h>
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
-#define LITHIUM_UART_BASE UART2_BASE
+#define LITHIUM_UART UART2_BASE
 
-
-uint8_t lithium_buffer[LITHIUM_BUFFER_MAX_LEN];
+uint8_t lithium_buffer[lithium_buffer_max_len];
 uint8_t lithium_buffer_len;
 
+uint8_t lithium_data_space[lithium_buffer_max_len];
+
+circ_bbuf_t lithium_ring_buffer = {.buffer = lithium_data_space,
+                                   .head = 0,
+                                   .tail = 0,
+                                   .maxlen = lithium_buffer_max_len};
+
+extern "C" {
 void UART2_IRQHandler(void) {
-    uint32_t ui32Status = MAP_UARTIntStatus(LITHIUM_UART_BASE, true);
-    MAP_UARTIntClear(UART2_BASE, ui32Status);
+    uint32_t ui32Status = MAP_UARTIntStatus(LITHIUM_UART, true);
+    MAP_UARTIntClear(LITHIUM_UART, ui32Status);
 
-    int32_t counter = 0;
-
-    while (MAP_UARTCharsAvail(LITHIUM_UART_BASE)) {
-        lithium_buffer[counter] =
-            (uint8_t)MAP_UARTCharGetNonBlocking(LITHIUM_UART_BASE);
-
-        counter++;
+    while (UARTCharsAvail(LITHIUM_UART)) {
+        uint8_t data = (uint8_t)MAP_UARTCharGet(LITHIUM_UART);
+        circ_bbuf_push(&lithium_ring_buffer, data);
     }
+}
+}
 
-    lithium_buffer_len = counter - 1;  // To account for the final ++
+err_t lithiumBytesAvailable(uint8_t* bytes_available) {
+    *bytes_available = ((lithium_ring_buffer.head - lithium_ring_buffer.tail) &
+                        (lithium_ring_buffer.maxlen - 1));
+
+    return 0;
+}
+
+err_t lithiumReadPacket(uint8_t lithium_buffer[255],
+                        uint8_t* lithium_buffer_len) {
+    // TODO(akremor): Determine Lithium format.
+
+    return 0;
 }

@@ -13,6 +13,7 @@ constexpr uint32_t led_pin = GPIO_PIN_4;
 
 static uint32_t system_clock_hz;
 
+err_t should_hibernate_on_boot(bool* should_hibernate);
 err_t init_gpio();
 err_t init_system_uart();
 err_t init_lithium_uart();
