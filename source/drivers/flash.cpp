@@ -1,5 +1,6 @@
 #include <data_types.h>
 #include <source/drivers/flash.h>
+#include <source/drivers/hal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -56,8 +57,8 @@ err_t configureFlashSpi() {
     GPIOB->DR8R |= (GPIO_PIN_5 | GPIO_PIN_4);
     GPIOE->DR8R |= (GPIO_PIN_5 | GPIO_PIN_4);
 
-    MAP_SSIConfigSetExpClk(SSI1_BASE, 120E6, SSI_FRF_MOTO_MODE_0,
-                           SSI_MODE_MASTER, (120E6 / 2), 8);
+    MAP_SSIConfigSetExpClk(SSI1_BASE, system_clock_hz, SSI_FRF_MOTO_MODE_0,
+                           SSI_MODE_MASTER, system_clock_hz / 100, 8);
 
     SSI1->CR1 |= SSI_CR1_HSCLKEN;
     MAP_SSIEnable(SSI1_BASE);

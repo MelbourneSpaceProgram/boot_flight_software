@@ -23,7 +23,7 @@ err_t should_hibernate_on_boot(bool* should_hibernate) {
 
 err_t init_clock() {
     system_clock_hz = MAP_SysCtlClockFreqSet(
-        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 10000000);
+        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
     return 0;
 }
 
@@ -93,7 +93,7 @@ err_t init_system_uart() {
     // Double check what we get back
 
     uint32_t baud, config;
-    UARTConfigGetExpClk(UART0_BASE, 120E6, &baud, &config);
+    UARTConfigGetExpClk(UART0_BASE, system_clock_hz, &baud, &config);
 
     return 0;
 }

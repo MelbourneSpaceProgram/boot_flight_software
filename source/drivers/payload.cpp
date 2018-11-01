@@ -16,6 +16,26 @@ err_t handlePayload(uint8_t* buffer, uint8_t buffer_len) {
 
         uint32_t patch_length_bytes = packet_length - 13;
 
+        if (image_base_address != Golden1 && image_base_address != Golden2 &&
+            image_base_address != Golden3 && image_base_address != Golden4 &&
+            image_base_address != Golden5 && image_base_address != Image1 &&
+            image_base_address != Image2 && image_base_address != Image3 &&
+            image_base_address != Image4 && image_base_address != Image5 &&
+            image_base_address != Image6 && image_base_address != Image7 &&
+            image_base_address != Image8 && image_base_address != Image9 &&
+            image_base_address != Image10 &&
+            image_base_address != Image11InMemory) {
+            return 1;
+        }
+
+        if (image_patch_address > Image11InMemory + 0xE8000) {
+            return 2;
+        }
+
+        if (patch_length_bytes > 255) {
+            return 3;
+        }
+
         writeBytesToMemory((ImageBaseAddress)image_base_address,
                            image_patch_address, &buffer[13],
                            patch_length_bytes);

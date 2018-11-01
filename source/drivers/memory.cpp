@@ -3,18 +3,22 @@
 #include "source/internal_image.h"
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
 
-err_t writeBytesToMemory(ImageBaseAddress image, uint32_t start_address,
+uint8_t sector[kSectorSizeBytes];
+
+err_t writeBytesToMemory(ImageBaseAddress image, uint32_t start_address_temp,
                          uint8_t* data, uint32_t data_size) {
-    start_address = start_address - image;  // TODO Adam
+    uint32_t start_address = start_address_temp - image;  // TODO Adam
     if (image == Image11InMemory) {
         // TODO Assert valid actual_address
         const uint8_t* actual_address = &flight_software[start_address];
         // Now find a pointer to the lower sector boundary
-        uint32_t sector_boundary = (uint32_t)actual_address / kSectorSizeBytes;
-        sector_boundary *= kSectorSizeBytes;
+        uint32_t sector_boundary_temp =
+            (uint32_t)actual_address / kSectorSizeBytes;
+        uint32_t sector_boundary = sector_boundary_temp * kSectorSizeBytes;
         uint32_t sector_offset = (uint32_t)actual_address - sector_boundary;
 
-        uint8_t sector[kSectorSizeBytes];
+        uint32_t actual_sector_size = SysCtlFlashSectorSizeGet();
+        tFlashProtection proc = FlashProtectGet(sector_boundary);
 
         memcpy(sector, (void*)sector_boundary, kSectorSizeBytes);
 

@@ -48,6 +48,9 @@ int main(void) {
     uint8_t payload_buffer_len = 0;
     uint8_t payload_buffer[payload_buffer_max_len] = {0};
 
+    static uint32_t payloads_received = 0;
+    static uint32_t payload_errors = 0;
+
     SystemState state = SYSTEM_IDLE_STATE;
     while (1) {
         switch (state) {
@@ -85,7 +88,12 @@ int main(void) {
                 break;
             }
             case SYSTEM_HANDLE_PAYLOAD: {
-                handlePayload(payload_buffer, (uint8_t)payload_buffer_len);
+                payloads_received++;
+                err_t err =
+                    handlePayload(payload_buffer, (uint8_t)payload_buffer_len);
+                if (err != 0) {
+                    payload_errors++;
+                }
                 state = SYSTEM_IDLE_STATE;
                 break;
             }
