@@ -3,7 +3,7 @@
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
 extern "C" {
-volatile bool hibernate_on_boot = false;
+volatile bool hibernate_on_boot = true;
 void HIBERNATE_IRQHandler(void) {
     uint32_t getIntStatus;
 
