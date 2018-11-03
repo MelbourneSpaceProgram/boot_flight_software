@@ -20,17 +20,17 @@ err_t flashWrite32Bit(uint32_t* data, uint32_t length) {
         MAP_SSIDataPut(SSI1_BASE, data[i] >> 8 & 0xFF);
         MAP_SSIDataPut(SSI1_BASE, data[i] >> 0 & 0xFF);
 
+        while (SSIBusy(SSI1_BASE))
+            ;
         clearSpiFifo();
     }
 
     return 0;
 }
 err_t configureFlashSpi() {
-    // The SSI1 peripheral must be disabled, reset and re enabled for use
-    // Wait till the Peripheral ready is not asserted
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI1);
-    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_SSI1);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI1))) {
+    }
 
     while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI1))) {
     }
@@ -73,7 +73,9 @@ err_t configureFlashSpi() {
 err_t flash4ByteMode() {
     flashSelectChip();
 
-    MAP_SSIDataPut(SSI1_BASE, EN4B);
+    SSIDataPut(SSI1_BASE, EN4B);
+    while (SSIBusy(SSI1_BASE))
+        ;
 
     flashDeselectChip();
 
@@ -99,6 +101,8 @@ err_t flashRead(uint32_t base_address, byte* read_buffer,
     uint32_t dummy_buffer[1];
 
     MAP_SSIDataPut(SSI1_BASE, READ4B);
+    while (SSIBusy(SSI1_BASE))
+        ;
     clearSpiFifo();
 
     flashWrite32Bit(&base_address, 1);
@@ -166,6 +170,8 @@ err_t flashWrite(uint32_t base_address, byte* write_buffer,
 
     for (uint32_t i = 0; i < kPageLength; i++) {
         MAP_SSIDataPut(SSI1_BASE, sector_buffer[i]);
+        while (SSIBusy(SSI1_BASE))
+            ;
     }
 
     flashDeselectChip();

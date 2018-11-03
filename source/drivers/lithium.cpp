@@ -150,6 +150,8 @@ err_t buildLithiumHeader(uint8_t* buffer, uint8_t payload_size,
 
 err_t lithiumReadPacket(uint8_t lithium_buffer[255],
                         uint8_t* lithium_buffer_len) {
+    uint32_t timeout_counter = 10000;
+
     uint8_t sync_char;
     // Burn until we sync
     circ_bbuf_pop(&lithium_ring_buffer, &sync_char);
@@ -164,13 +166,18 @@ err_t lithiumReadPacket(uint8_t lithium_buffer[255],
 
     uint8_t counter = 1;
     while (counter < 8) {
+        if (timeout_counter == 0) {
+            return 1;
+        }
+
         int32_t buffer_error =
             circ_bbuf_pop(&lithium_ring_buffer, &lithium_buffer[counter]);
 
         if (buffer_error == 0) {
             counter++;
+        } else {
+            timeout_counter--;
         }
-        // TODO Else timeout?
     }
 
     validateLithiumPacket(lithium_buffer, 8);
@@ -180,13 +187,17 @@ err_t lithiumReadPacket(uint8_t lithium_buffer[255],
     counter = 0;
     // Read in the rest of the packet which is the payload
     while (counter < payload_length) {
+        if (timeout_counter == 0) {
+            return 1;
+        }
         int32_t buffer_error =
             circ_bbuf_pop(&lithium_ring_buffer, &lithium_buffer[counter]);
 
         if (buffer_error == 0) {
             counter++;
+        } else {
+            timeout_counter--;
         }
-        // TODO Else timeout?
     }
 
     err_t packet_authenticated =

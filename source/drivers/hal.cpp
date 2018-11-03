@@ -1,3 +1,4 @@
+#include <source/drivers/flash.h>
 #include <source/drivers/hal.h>
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
@@ -22,8 +23,8 @@ err_t should_hibernate_on_boot(bool* should_hibernate) {
 }
 
 err_t init_clock() {
-    system_clock_hz = MAP_SysCtlClockFreqSet(
-        SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+    MAP_SysCtlClockFreqSet(SYSCTL_OSC_INT | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+                           system_clock_hz);
     return 0;
 }
 
@@ -149,31 +150,7 @@ err_t init_umbilical_uart() {
 }
 
 err_t init_flash_spi() {
-    // TODO Confirm pinning
-    /* Enable clocks to GPIO Port A and configure pins as SSI */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE))) {
-    }
-
-    MAP_GPIOPinConfigure(GPIO_PB5_SSI1CLK);
-    MAP_GPIOPinConfigure(GPIO_PB4_SSI1FSS);  // TODO
-    MAP_GPIOPinConfigure(GPIO_PE4_SSI1XDAT0);
-    MAP_GPIOPinConfigure(GPIO_PE5_SSI1XDAT1);
-    MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE,
-                       (GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5));
-
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
-    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI1))) {
-    }
-
-    MAP_SSIConfigSetExpClk(SSI1_BASE, system_clock_hz, SSI_FRF_MOTO_MODE_0,
-                           SSI_MODE_MASTER, (system_clock_hz / 24), 8);
-    MAP_SSIEnable(SSI1_BASE);
-
-    /* Flush the Receive FIFO */
-    uint32_t getResponseData;
-    while (MAP_SSIDataGetNonBlocking(SSI1_BASE, &getResponseData))
-        ;
+    configureFlashSpi();
 
     return 0;
 }

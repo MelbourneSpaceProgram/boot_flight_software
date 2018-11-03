@@ -11,7 +11,7 @@ constexpr uint32_t sys_reset_pin = GPIO_PIN_4;
 constexpr uint32_t led_port = GPIO_PORTQ_BASE;
 constexpr uint32_t led_pin = GPIO_PIN_4;
 
-static uint32_t system_clock_hz;
+static uint32_t system_clock_hz = 120000000;
 
 err_t should_hibernate_on_boot(bool* should_hibernate);
 err_t init_gpio();

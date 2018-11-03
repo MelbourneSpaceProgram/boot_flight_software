@@ -1,5 +1,6 @@
 #include "main.h"
 #include <main.h>
+#include <source/drivers/flash.h>
 #include <source/drivers/hal.h>
 #include <source/drivers/lithium.h>
 #include <source/drivers/payload.h>
@@ -25,7 +26,7 @@ int main(void) {
     bool hibernate_on_boot;
     should_hibernate_on_boot(&hibernate_on_boot);
     if (hibernate_on_boot) {
-        SysCtlDelay(30 * system_clock_hz);  // 30 second wait before hibernating
+        SysCtlDelay(10 * system_clock_hz);  // 30 second wait before hibernating
         GPIOPinWrite(sys_reset_port, sys_reset_pin, 0x00);
         MAP_HibernateRTCMatchSet(0, (MAP_HibernateRTCGet() + hibernate_time_s));
         MAP_HibernateRequest();
@@ -56,10 +57,16 @@ int main(void) {
         switch (state) {
             case SYSTEM_IDLE_STATE: {
                 // If something of interest in a buffer, call the packet handler
-                uint8_t are_bytes_available;
-                umbilicalBytesAvailable(&are_bytes_available);
-                if (are_bytes_available > 5) {
+                uint8_t n_bytes_available = 0;
+                umbilicalBytesAvailable(&n_bytes_available);
+                if (n_bytes_available > 5) {
                     state = SYSTEM_HANDLE_UMBILICAL_PACKET;
+                    break;
+                }
+
+                lithiumBytesAvailable(&n_bytes_available);
+                if (n_bytes_available > 5) {
+                    state = SYSTEM_HANDLE_LITHIUM_PACKET;
                     break;
                 }
 
@@ -79,7 +86,7 @@ int main(void) {
             case SYSTEM_HANDLE_LITHIUM_PACKET: {
                 err_t read_successful =
                     lithiumReadPacket(payload_buffer, &payload_buffer_len);
-                if (read_successful != UMB_NO_ERROR) {
+                if (read_successful != LITHIUM_NO_ERROR) {
                     state = SYSTEM_IDLE_STATE;
                     break;
                 }
