@@ -26,7 +26,9 @@ int main(void) {
     bool hibernate_on_boot;
     should_hibernate_on_boot(&hibernate_on_boot);
     if (hibernate_on_boot) {
-        SysCtlDelay(10 * system_clock_hz);  // 30 second wait before hibernating
+        GPIOPinWrite(sys_reset_port, low_power_trigger_pin,
+                     low_power_trigger_pin);
+        SysCtlDelay(10 * system_clock_hz);  // 10 second wait before hibernating
         GPIOPinWrite(sys_reset_port, sys_reset_pin, 0x00);
         MAP_HibernateRTCMatchSet(0, (MAP_HibernateRTCGet() + hibernate_time_s));
         MAP_HibernateRequest();
