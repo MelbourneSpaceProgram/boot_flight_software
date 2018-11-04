@@ -28,7 +28,7 @@ int main(void) {
     if (hibernate_on_boot) {
         GPIOPinWrite(sys_reset_port, low_power_trigger_pin,
                      low_power_trigger_pin);
-        SysCtlDelay(1 * system_clock_hz);  // 30 second wait before hibernating
+        SysCtlDelay(1 * system_clock_hz);  // 1 second wait before hibernating
         GPIOPinWrite(sys_reset_port, sys_reset_pin, 0x00);
         MAP_HibernateRTCMatchSet(0, (MAP_HibernateRTCGet() + hibernate_time_s));
         MAP_HibernateRequest();
@@ -36,6 +36,8 @@ int main(void) {
         while (1) {
         }
     }
+
+    SysCtlDelay(5 * system_clock_hz);  // 1 second wait before bringing up the sys MCU
 
     GPIOPinWrite(sys_reset_port, sys_reset_pin, sys_reset_pin);
 
