@@ -109,8 +109,7 @@ err_t init_lithium_uart() {
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_UART2);
 
-    GPIOPinConfigure(GPIO_PA6_U2RX);
-    GPIOPinConfigure(GPIO_PA7_U2TX);
+    // TX pin not configured to avoid interference with SYS transmission
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_6 | GPIO_PIN_7);
 
     UARTConfigSetExpClk(
