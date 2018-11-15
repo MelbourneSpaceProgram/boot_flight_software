@@ -138,7 +138,7 @@ err_t init_umbilical_uart() {
     MAP_GPIOPinTypeUART(GPIO_PORTB_BASE, GPIO_PIN_0 | GPIO_PIN_1);
 
     MAP_UARTConfigSetExpClk(
-        UART1_BASE, system_clock_hz, 9600,
+        UART1_BASE, system_clock_hz, 115200,
         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 
     // Enable the UART interrupt.
